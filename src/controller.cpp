@@ -18,42 +18,70 @@ extern void BroadcastFocusedDesktopMode(virtual_space *VirtualSpace);
 
 extern chunkwm_log *c_log;
 
-void FloatWindow(macos_window *Window)
-{
-    AXLibAddFlags(Window, Window_Float);
-    BroadcastFocusedWindowFloating(Window);
-
-    //if (CVarIntegerValue(CVAR_WINDOW_FLOAT_TOPMOST)) {
-    //    ExtendedDockSetWindowLevel(Window, kCGModalPanelWindowLevelKey);
-    //}
-}
-
-internal void
-UnfloatWindow(macos_window *Window)
-{
-    AXLibClearFlags(Window, Window_Float);
-    BroadcastFocusedWindowFloating(Window);
-
-    //if (CVarIntegerValue(CVAR_WINDOW_FLOAT_TOPMOST)) {
-    //    ExtendedDockSetWindowLevel(Window, kCGNormalWindowLevelKey);
-    //}
-}
-
-internal void
-ToggleWindowFloat()
+// should accept window ID?
+void ResizeWindow(char *Op)
 {
     macos_window *Window = GetFocusedWindow();
-    if (!Window) {
+    if (!Window) { return; }
+
+    // make sure window is floating
+    if (!AXLibHasFlags(Window, Window_Float)) {
+        c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
         return;
     }
 
-    if (AXLibHasFlags(Window, Window_Float)) {
-        UnfloatWindow(Window);
-        //TileWindow(Window);
-    } else {
-        //UntileWindow(Window);
-        FloatWindow(Window);
+    /*
+    bool WindowMoved  = AXLibSetWindowPosition(Window->Ref, Node->Region.X, Node->Region.Y);
+    bool WindowResized = AXLibSetWindowSize(Window->Ref, Node->Region.Width, Node->Region.Height);
+
+    if (Center) {
+        if (WindowMoved || WindowResized) {
+            CenterWindowInRegion(Window, Node->Region);
+        }
     }
+    */
+    // WindowMoved or WindowResized flags? necessary?
+
+    // for now assume we're dilating a window south
+    CGPoint Position = AXLibGetWindowPosition(Window->Ref);
+    CGSize Size = AXLibGetWindowSize(Window->Ref);
+
+    /*
+
+    // does the type of this region matter? not sure
+    // feels hacky
+    region Region = {
+        .X = (float) AXLibGetWindowPosition(Window->Ref).x,
+        .Y = (float) AXLibGetWindowPosition(Window->Ref).y,
+        .Width = (float) AXLibGetWindowSize(Window->Ref).width,
+        .Height = (float) AXLibGetWindowSize(Window->Ref).height,
+        .Type = Region_Full
+    };
+
+    //float DiffX = (Region.X + Region.Width) - (Position.x + Size.width);
+    //float DiffX = (AXLibGetWindowPosition(Window->Ref).x + AXLibGetWindowSize(Window->Ref).width) - (Position.x + Size.width);
+    //float DiffY = (AXLibGetWindowPosition(Window->Ref).y + AXLibGetWindowSize(Window->Ref).height) - (Position.y + Size.height);
+    float DiffX = (Region.X + Region.Width) - (Position.x + Size.width);
+    float DiffY = (Region.Y + Region.Height) - (Position.y + Size.height);
+
+    if ((DiffX > 0.0f) || (DiffY > 0.0f)) {
+        float OffsetX = DiffX / 2.0f;
+        Region.X += OffsetX;
+        Region.Width -= OffsetX;
+
+        float OffsetY = DiffY / 2.0f;
+        Region.Y += OffsetY;
+        Region.Height -= OffsetY;
+
+        AXLibSetWindowPosition(Window->Ref, Region.X, Region.Y);
+        AXLibSetWindowSize(Window->Ref, Region.Width, Region.Height);
+    }
+    */
+
+    // hardcode the move for now
+    //AXLibSetWindowPosition(Window->Ref, AXLibGetWindowPosition(Window->Ref).x + 100, AXLibGetWindowPosition(Window->Ref).y);
+    AXLibSetWindowPosition(Window->Ref, Position.x + 100, Position.y);
+    AXLibSetWindowSize(Window->Ref, AXLibGetWindowSize(Window->Ref).width, AXLibGetWindowSize(Window->Ref).height);
 }
 
 void QueryWindowCoord(char *Op, int SockFD)
@@ -64,6 +92,7 @@ void QueryWindowCoord(char *Op, int SockFD)
     float Pos;
 
     Window = GetFocusedWindow();
+    if (!Window) { return; }
 
     if (StringEquals(Op, "x")) {
         Pos = AXLibGetWindowPosition(Window->Ref).x;

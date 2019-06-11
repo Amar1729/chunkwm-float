@@ -7,7 +7,7 @@ struct macos_window;
 struct macos_space;
 struct virtual_space;
 
-void FloatWindow(macos_window *Window);
+void ResizeWindow(char *Op);
 void QueryWindowCoord(char *Op, int SockFD);
 
 #endif

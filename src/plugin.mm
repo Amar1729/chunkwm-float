@@ -213,20 +213,6 @@ ClearApplicationCache()
     Applications.clear();
 }
 
-internal void
-BroadcastFocusedWindowFloating()
-{
-    uint32_t Data[2] = { 0, 0 };
-    API.Broadcast(PluginName, "focused_window_float", (char *) Data, sizeof(Data));
-}
-
-void BroadcastFocusedWindowFloating(macos_window *Window)
-{
-    uint32_t Status = (uint32_t) AXLibHasFlags(Window, Window_Float);
-    uint32_t Data[2] = { Window->Id, Status };
-    API.Broadcast(PluginName, "focused_window_float", (char *) Data, sizeof(Data));
-}
-
 internal bool
 GetSpaceAndDesktopId(macos_space **SpaceDest, unsigned *IdDest)
 {
@@ -255,6 +241,30 @@ Handler_Daemon(void *Data)
 {
     chunkwm_payload *Payload = (chunkwm_payload *) Data;
     CommandCallback(Payload->SockFD, Payload->Command, Payload->Message);
+}
+
+internal void
+Handler_WindowFloated(void *Data)
+{
+    uint32_t *Buf = (uint32_t *) Data;
+    uint32_t WindowId = Buf[0];
+    uint32_t Status = Buf[1];
+
+    c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: received window %d float: %d\n", WindowId, Status);
+
+    // validate
+    macos_window *Window = GetWindowByID(WindowId);
+    if (!Window || Status < 0 || Status > 1) { return; }
+
+    // make sure we now it's floating
+    if (Status) {
+        AXLibAddFlags(Window, Window_Float);
+
+        // TODO
+        //WindowFloating_Resize();
+    } else {
+        AXLibClearFlags(Window, Window_Float);
+    }
 }
 
 internal void
@@ -288,26 +298,15 @@ PLUGIN_MAIN_FUNC(PluginMain)
     } else if (StringEquals(Node, "chunkwm_export_window_destroyed")) {
         Handler_WindowDestroyed(Data);
         return true;
-    } else if (StringsAreEqual(Node, "chunkwm_daemon_command")) {
+    } else if (StringEquals(Node, "chunkwm_daemon_command")) {
         Handler_Daemon(Data);
         return true;
+    } else if (StringEquals(Node, "Tiling_focused_window_float")) {
+        Handler_WindowFloated(Data);
+        return true;
     } else {
-        macos_space *Space;
-        unsigned DesktopId = 1;
-        bool Result = GetSpaceAndDesktopId(&Space, &DesktopId);
-        if (!Result) {
-            return false;
-        }
-
-        if (Space->Type != kCGSSpaceUser) {
-            return true;
-        }
-
-        int NumberOfWindows = NumberOfWindowsOnSpace(Space->Id);
-        bool Floating = NumberOfWindows <= 5; // && DoFloatSpace(Space->Id);
-        //c_log(C_LOG_LEVEL_WARN, "number of windows: %d\n", NumberOfWindows);
-
-        return Floating;
+    // TODO - want a cvar setting to auto-float the first window on a space
+    // note - no clue how to do this since i'll need to call float from the tiling plugin
     }
 
     return false;

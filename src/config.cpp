@@ -74,14 +74,14 @@ ConstructCommand(char Flag, char *Arg)
 
 typedef void (*query_func)(char *, int);
 typedef void (*command_func)(char *);
+
 command_func WindowCommandDispatch(char Flag)
 {
     switch (Flag) {
     //case 'a': return AllCycle;          break;
     //case 'f': return FloatCycle;        break;
-    //case 'r': return ResizeWindow;      break;
+    case 'r': return ResizeWindow;      break;
     //case 'p': return PresetWindow;      break;
-    //case 'c': return ToggleFloat;       break;
 
     // NOTE(koekeishiya): silence compiler warning.
     default: return 0; break;
@@ -91,8 +91,40 @@ command_func WindowCommandDispatch(char Flag)
 inline bool
 ParseWindowCommand(const char *Message, command *Chain)
 {
-    // stub
-    return true;
+    int Count;
+    char **Args = BuildArguments(Message, &Count);
+
+    int Option;
+    bool Success = true;
+    const char *Short = "r:t:";
+
+    struct option Long[] = {
+        { "resize", required_argument, NULL, 'r' },
+        { NULL, 0, NULL, 0 }
+    };
+
+    command *Command = Chain;
+    while ((Option = getopt_long(Count, Args, Short, Long, NULL)) != -1) {
+        switch (Option) {
+            case 'r': {
+                command *Entry = ConstructCommand(Option, optarg);
+                Command->Next = Entry;
+                Command = Entry;
+            } break;
+            case '?': {
+                Success = false;
+                FreeCommandChain(Chain);
+                goto End;
+            } break;
+        }
+    }
+
+End:
+    // reset getopt
+    optind = 1;
+
+    FreeArguments(Count, Args);
+    return Success;
 }
 
 query_func QueryCommandDispatch(char Flag)
@@ -159,6 +191,16 @@ void CommandCallback(int SockFD, const char *Type, const char *Message)
             }
 
             FreeCommandChain(&Chain);
+        }
+    } else if (StringEquals(Type, "window")) {
+        command Chain = {};
+        bool Success = ParseWindowCommand(Message, &Chain);
+        if (Success) {
+            command *Command = &Chain;
+            while ((Command = Command->Next)) {
+                c_log(C_LOG_LEVEL_WARN, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
+                (*WindowCommandDispatch(Command->Flag))(Command->Arg);
+            }
         }
     } else {
         c_log(C_LOG_LEVEL_WARN, "chunkwm-float: no match for '%s %s'\n", Type, Message);
