@@ -54,7 +54,7 @@ typedef macos_application_map::iterator macos_application_map_it;
 typedef std::map<uint32_t, macos_window *> macos_window_map;
 typedef macos_window_map::iterator macos_window_map_it;
 
-internal const char *PluginName = "float";
+internal const char *PluginName = "Floating";
 internal const char *PluginVersion = "0.1.0";
 
 internal macos_application_map Applications;
@@ -119,6 +119,22 @@ macos_window *GetFocusedWindow()
 {
     uint32_t WindowId = GetFocusedWindowId();
     return WindowId ? GetWindowByID(WindowId) : NULL;
+}
+
+// put for now but want this in utils?
+bool IsWindowValid(macos_window *Window)
+{
+    bool Result;
+    if (AXLibHasFlags(Window, Window_Invalid)) {
+        Result = false;
+    } else if (AXLibHasFlags(Window, Window_ForceTile)) {
+        Result = true;
+    } else {
+        Result = ((AXLibIsWindowStandard(Window)) &&
+                  (AXLibHasFlags(Window, Window_Movable)) &&
+                  (AXLibHasFlags(Window, Window_Resizable)));
+    }
+    return Result;
 }
 
 // NOTE(koekeishiya): Caller is responsible for making sure that the window is not a dupe.
