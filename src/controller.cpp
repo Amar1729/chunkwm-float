@@ -15,34 +15,32 @@
 
 #define internal static
 
-extern macos_window *GetWindowById(uint32_t Id);
 extern macos_window *GetFocusedWindow();
-extern uint32_t GetFocusedWindowId();
-extern void BroadcastFocusedWindowFloating(macos_window *Window);
-extern void BroadcastFocusedDesktopMode(virtual_space *VirtualSpace);
 
 extern chunkwm_log *c_log;
 
-void ResizeWindow(macos_window *Window, char *Op, bool Increase)
+void _Move(macos_window *Window, char *Op, int Step)
 {
-    // make sure window is floating
-    if (!AXLibHasFlags(Window, Window_Float)) {
-        c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
-        return;
+    CGPoint Position = AXLibGetWindowPosition(Window->Ref);
+
+    uint32_t X = Position.x;
+    uint32_t Y = Position.y;
+
+    if        (StringEquals(Op, "north")) {
+        Y -= Step;
+    } else if (StringEquals(Op, "south")) {
+        Y += Step;
+    } else if (StringEquals(Op, "west")) {
+        X -= Step;
+    } else if (StringEquals(Op, "east")) {
+        X += Step;
     }
 
-    CFStringRef DisplayRef = AXLibGetDisplayIdentifierFromWindowRect(Window->Position, Window->Size);
-    ASSERT(DisplayRef);
+    AXLibSetWindowPosition(Window->Ref, X, Y);
+}
 
-    macos_space *Space = AXLibActiveSpace(DisplayRef);
-    ASSERT(Space);
-
-    virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
-
-    //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-    int Step = 10;
-    if (!Increase) { Step *= -1; }
-
+void _Dilate(macos_window *Window, char *Op, int Step)
+{
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
     CGSize Size = AXLibGetWindowSize(Window->Ref);
 
@@ -88,22 +86,63 @@ void ResizeWindow(macos_window *Window, char *Op, bool Increase)
     // what in the hek :
     AXLibSetWindowSize(Window->Ref, W, H);
     // incorrect coords are being read for (?) size??? they're off by about 3
+}
+
+void ResizeWindow(macos_window *Window, char *Op, bool Increase)
+{
+    // make sure window is floating
+    if (!AXLibHasFlags(Window, Window_Float)) {
+        c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
+        return;
+    }
+
+    CFStringRef DisplayRef = AXLibGetDisplayIdentifierFromWindowRect(Window->Position, Window->Size);
+    ASSERT(DisplayRef);
+
+    macos_space *Space = AXLibActiveSpace(DisplayRef);
+    ASSERT(Space);
+
+    virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
+
+    //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+    int Step = 10;
+    if (!Increase) { Step *= -1; }
+
+    _Dilate(Window, Op, Step);
 
     ReleaseVirtualSpace(VirtualSpace);
     AXLibDestroySpace(Space);
     CFRelease(DisplayRef);
 }
 
+void MoveWindow(char *Op)
+{
+    macos_window *Window = GetFocusedWindow();
+    if (Window) {
+        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+        //ResizeWindow(Window, Op, Step);
+        _Move(Window, Op, 10);
+    }
+}
+
 void IncWindow(char *Op)
 {
     macos_window *Window = GetFocusedWindow();
-    if (Window) { ResizeWindow(Window, Op, true); }
+    if (Window) {
+        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+        //ResizeWindow(Window, Op, Step);
+        ResizeWindow(Window, Op, true);
+    }
 }
 
 void DecWindow(char *Op)
 {
     macos_window *Window = GetFocusedWindow();
-    if (Window) { ResizeWindow(Window, Op, false); }
+    if (Window) {
+        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+        //ResizeWindow(Window, Op, -Step);
+        ResizeWindow(Window, Op, false);
+    }
 }
 
 void SetSize(char *Size)

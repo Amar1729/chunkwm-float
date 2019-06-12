@@ -81,6 +81,7 @@ command_func WindowCommandDispatch(char Flag)
     switch (Flag) {
     //case 'a': return AllCycle;          break;
     //case 'f': return FloatCycle;        break;
+    case 'm': return MoveWindow;     break;
     case 'i': return IncWindow;      break;
     case 'd': return DecWindow;      break;
     case 's': return SetSize;      break;
@@ -99,11 +100,12 @@ ParseWindowCommand(const char *Message, command *Chain)
 
     int Option;
     bool Success = true;
-    const char *Short = "d:i:s:";
+    const char *Short = "d:i:s:m:";
 
     struct option Long[] = {
         { "inc", required_argument, NULL, 'i' },
         { "dec", required_argument, NULL, 'd' },
+        { "move", required_argument, NULL, 'm' },
         { "size", required_argument, NULL, 's' },
         { NULL, 0, NULL, 0 }
     };
@@ -113,13 +115,24 @@ ParseWindowCommand(const char *Message, command *Chain)
         switch (Option) {
             case 's':
             case 'i':
-            case 'd': {
-                uint32_t Size;
+            case 'm': {
                 if ((StringEquals(optarg, "west")) ||
                     (StringEquals(optarg, "east")) ||
                     (StringEquals(optarg, "north")) ||
-                    (StringEquals(optarg, "south")) ||
-                    (sscanf(optarg, "%d", &Size) == 1)) {
+                    (StringEquals(optarg, "south"))) {
+                    command *Entry = ConstructCommand(Option, optarg);
+                    Command->Next = Entry;
+                    Command = Entry;
+                } else {
+                    c_log(C_LOG_LEVEL_WARN, "    invalid selector '%s' for window flag '%c'\n", optarg, Option);
+                    Success = false;
+                    FreeCommandChain(Chain);
+                    goto End;
+                }
+            } break;
+            case 'd': {
+                uint32_t Size;
+                if (sscanf(optarg, "%d", &Size) == 1) {
                     command *Entry = ConstructCommand(Option, optarg);
                     Command->Next = Entry;
                     Command = Entry;
