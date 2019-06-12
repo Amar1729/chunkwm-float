@@ -4,8 +4,13 @@
 
 #include "../chunkwm/src/common/accessibility/window.h"
 #include "../chunkwm/src/common/accessibility/element.h"
+#include "../chunkwm/src/common/accessibility/display.h"
+#include "../chunkwm/src/common/config/cvar.h"
 #include "../chunkwm/src/common/ipc/daemon.h"
+#include "../chunkwm/src/common/misc/assert.h"
 
+#include "vspace.h"
+#include "constants.h"
 #include "misc.h"
 
 #define internal static
@@ -18,70 +23,95 @@ extern void BroadcastFocusedDesktopMode(virtual_space *VirtualSpace);
 
 extern chunkwm_log *c_log;
 
-// should accept window ID?
-void ResizeWindow(char *Op)
+void ResizeWindow(macos_window *Window, char *Op, bool Increase)
 {
-    macos_window *Window = GetFocusedWindow();
-    if (!Window) { return; }
-
     // make sure window is floating
     if (!AXLibHasFlags(Window, Window_Float)) {
         c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
         return;
     }
 
-    /*
-    bool WindowMoved  = AXLibSetWindowPosition(Window->Ref, Node->Region.X, Node->Region.Y);
-    bool WindowResized = AXLibSetWindowSize(Window->Ref, Node->Region.Width, Node->Region.Height);
+    CFStringRef DisplayRef = AXLibGetDisplayIdentifierFromWindowRect(Window->Position, Window->Size);
+    ASSERT(DisplayRef);
 
-    if (Center) {
-        if (WindowMoved || WindowResized) {
-            CenterWindowInRegion(Window, Node->Region);
-        }
-    }
-    */
-    // WindowMoved or WindowResized flags? necessary?
+    macos_space *Space = AXLibActiveSpace(DisplayRef);
+    ASSERT(Space);
 
-    // for now assume we're dilating a window south
+    virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
+
+    //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+    int Step = 10;
+    if (!Increase) { Step *= -1; }
+
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
     CGSize Size = AXLibGetWindowSize(Window->Ref);
 
-    /*
+    uint32_t X = Position.x;
+    uint32_t Y = Position.y;
+    uint32_t W = Size.width;
+    uint32_t H = Size.height;
 
-    // does the type of this region matter? not sure
-    // feels hacky
-    region Region = {
-        .X = (float) AXLibGetWindowPosition(Window->Ref).x,
-        .Y = (float) AXLibGetWindowPosition(Window->Ref).y,
-        .Width = (float) AXLibGetWindowSize(Window->Ref).width,
-        .Height = (float) AXLibGetWindowSize(Window->Ref).height,
-        .Type = Region_Full
-    };
+    c_log(C_LOG_LEVEL_WARN, "%dx%d - %dx%d\n", X, Y, W, H);
 
-    //float DiffX = (Region.X + Region.Width) - (Position.x + Size.width);
-    //float DiffX = (AXLibGetWindowPosition(Window->Ref).x + AXLibGetWindowSize(Window->Ref).width) - (Position.x + Size.width);
-    //float DiffY = (AXLibGetWindowPosition(Window->Ref).y + AXLibGetWindowSize(Window->Ref).height) - (Position.y + Size.height);
-    float DiffX = (Region.X + Region.Width) - (Position.x + Size.width);
-    float DiffY = (Region.Y + Region.Height) - (Position.y + Size.height);
-
-    if ((DiffX > 0.0f) || (DiffY > 0.0f)) {
-        float OffsetX = DiffX / 2.0f;
-        Region.X += OffsetX;
-        Region.Width -= OffsetX;
-
-        float OffsetY = DiffY / 2.0f;
-        Region.Y += OffsetY;
-        Region.Height -= OffsetY;
-
-        AXLibSetWindowPosition(Window->Ref, Region.X, Region.Y);
-        AXLibSetWindowSize(Window->Ref, Region.Width, Region.Height);
+    // inc/dec comments :
+    if        (StringEquals(Op, "north")) {
+        // has precision bleed
+        // has precision bleed
+        Y -= Step;
+        H += Step;
+        if (Step > 0) {
+            H += Step;
+        }
+    } else if (StringEquals(Op, "south")) {
+        // NOTE - too small StepSize wont do anything here!
+        // doesnt do anything
+        // works fine
+        H += 20;
+    } else if (StringEquals(Op, "west")) {
+        // has precision bleed
+        // has precision bleed
+        X -= Step;
+        W += Step;
+        if (Step > 0) {
+            W += Step;
+        }
+    } else if (StringEquals(Op, "east")) {
+        // works fine
+        // works fine
+        W += Step;
     }
-    */
 
-    // hardcode the move for now
-    //AXLibSetWindowPosition(Window->Ref, AXLibGetWindowPosition(Window->Ref).x + 100, AXLibGetWindowPosition(Window->Ref).y);
-    AXLibSetWindowPosition(Window->Ref, Position.x + 100, Position.y);
-    AXLibSetWindowSize(Window->Ref, AXLibGetWindowSize(Window->Ref).width, AXLibGetWindowSize(Window->Ref).height);
+    c_log(C_LOG_LEVEL_WARN, "%dx%d - %dx%d\n", X, Y, W, H);
+    c_log(C_LOG_LEVEL_WARN, "\n");
+
+    AXLibSetWindowPosition(Window->Ref, X, Y);
+    // what in the hek :
+    AXLibSetWindowSize(Window->Ref, W, H);
+    // incorrect coords are being read for (?) size??? they're off by about 3
+
+    ReleaseVirtualSpace(VirtualSpace);
+    AXLibDestroySpace(Space);
+    CFRelease(DisplayRef);
+}
+
+void IncWindow(char *Op)
+{
+    macos_window *Window = GetFocusedWindow();
+    if (Window) { ResizeWindow(Window, Op, true); }
+}
+
+void DecWindow(char *Op)
+{
+    macos_window *Window = GetFocusedWindow();
+    if (Window) { ResizeWindow(Window, Op, false); }
+}
+
+void SetSize(char *Size)
+{
+    c_log(C_LOG_LEVEL_WARN, "setsize\n");
+    uint32_t StepSize;
+    sscanf(Size, "%d", &StepSize);
+    UpdateCVar(CVAR_FLOAT_STEPSIZE, StepSize);
 }
 
 void QueryWindowCoord(char *Op, int SockFD)
@@ -94,61 +124,14 @@ void QueryWindowCoord(char *Op, int SockFD)
     Window = GetFocusedWindow();
     if (!Window) { return; }
 
-    if (StringEquals(Op, "x")) {
-        Pos = AXLibGetWindowPosition(Window->Ref).x;
-    } else if (StringEquals(Op, "y")) {
-        Pos = AXLibGetWindowPosition(Window->Ref).y;
-    } else if (StringEquals(Op, "w")) {
-        Pos = AXLibGetWindowSize(Window->Ref).width;
-    } else if (StringEquals(Op, "h")) {
-        Pos = AXLibGetWindowSize(Window->Ref).height;
-    } else {
-        Pos = 0.0;
+    switch (Op[0]) {
+        case 'x' : { Pos = AXLibGetWindowPosition(Window->Ref).x;  } break ;
+        case 'y' : { Pos = AXLibGetWindowPosition(Window->Ref).y;  } break ;
+        case 'w' : { Pos = AXLibGetWindowSize(Window->Ref).width;  } break ;
+        case 'h' : { Pos = AXLibGetWindowSize(Window->Ref).height; } break ;
+        case '?' : { Pos = 0.0; } break ;
     }
 
     snprintf(Message, sizeof(Message), "%d", (int) Pos);
     WriteToSocket(Message, SockFD);
 }
-
-// for reference: gridlayout
-/*
-void GridLayout(macos_window *Window, char *Op)
-{
-    CFStringRef DisplayRef = AXLibGetDisplayIdentifierFromWindowRect(Window->Position, Window->Size);
-    ASSERT(DisplayRef);
-
-    macos_space *Space = AXLibActiveSpace(DisplayRef);
-    ASSERT(Space);
-
-    virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
-    if ((AXLibHasFlags(Window, Window_Float)) || (VirtualSpace->Mode == Virtual_Space_Float)) {
-        unsigned GridRows, GridCols, WinX, WinY, WinWidth, WinHeight;
-        if (sscanf(Op, "%d:%d:%d:%d:%d:%d", &GridRows, &GridCols, &WinX, &WinY, &WinWidth, &WinHeight) == 6) {
-            WinX = WinX >= GridCols ? GridCols - 1 : WinX;
-            WinY = WinY >= GridRows ? GridRows - 1 : WinY;
-            WinWidth = WinWidth <= 0 ? 1 : WinWidth;
-            WinHeight = WinHeight <= 0 ? 1 : WinHeight;
-            WinWidth = WinWidth > GridCols - WinX ? GridCols - WinX : WinWidth;
-            WinHeight = WinHeight > GridRows - WinY ? GridRows - WinY : WinHeight;
-
-            region Region = FullscreenRegion(DisplayRef, VirtualSpace);
-            float CellWidth = Region.Width / GridCols;
-            float CellHeight = Region.Height / GridRows;
-            AXLibSetWindowPosition(Window->Ref,
-                                   Region.X + Region.Width - CellWidth * (GridCols - WinX),
-                                   Region.Y + Region.Height - CellHeight * (GridRows - WinY));
-            AXLibSetWindowSize(Window->Ref, CellWidth * WinWidth, CellHeight * WinHeight);
-        }
-    }
-
-    ReleaseVirtualSpace(VirtualSpace);
-    AXLibDestroySpace(Space);
-    CFRelease(DisplayRef);
-}
-
-void GridLayout(char *Op)
-{
-    macos_window *Window = GetFocusedWindow();
-    if (Window) GridLayout(Window, Op);
-}
-*/

@@ -7,6 +7,7 @@
 #include "../chunkwm/src/common/config/cvar.h"
 // #include "../chunkwm/src/common/misc/assert.h"
 
+#include "constants.h"
 #include "misc.h"
 
 #include <CoreFoundation/CFString.h>
@@ -80,7 +81,9 @@ command_func WindowCommandDispatch(char Flag)
     switch (Flag) {
     //case 'a': return AllCycle;          break;
     //case 'f': return FloatCycle;        break;
-    case 'r': return ResizeWindow;      break;
+    case 'i': return IncWindow;      break;
+    case 'd': return DecWindow;      break;
+    case 's': return SetSize;      break;
     //case 'p': return PresetWindow;      break;
 
     // NOTE(koekeishiya): silence compiler warning.
@@ -96,20 +99,36 @@ ParseWindowCommand(const char *Message, command *Chain)
 
     int Option;
     bool Success = true;
-    const char *Short = "r:t:";
+    const char *Short = "d:i:s:";
 
     struct option Long[] = {
-        { "resize", required_argument, NULL, 'r' },
+        { "inc", required_argument, NULL, 'i' },
+        { "dec", required_argument, NULL, 'd' },
+        { "size", required_argument, NULL, 's' },
         { NULL, 0, NULL, 0 }
     };
 
     command *Command = Chain;
     while ((Option = getopt_long(Count, Args, Short, Long, NULL)) != -1) {
         switch (Option) {
-            case 'r': {
-                command *Entry = ConstructCommand(Option, optarg);
-                Command->Next = Entry;
-                Command = Entry;
+            case 's':
+            case 'i':
+            case 'd': {
+                uint32_t Size;
+                if ((StringEquals(optarg, "west")) ||
+                    (StringEquals(optarg, "east")) ||
+                    (StringEquals(optarg, "north")) ||
+                    (StringEquals(optarg, "south")) ||
+                    (sscanf(optarg, "%d", &Size) == 1)) {
+                    command *Entry = ConstructCommand(Option, optarg);
+                    Command->Next = Entry;
+                    Command = Entry;
+                } else {
+                    c_log(C_LOG_LEVEL_WARN, "    invalid selector '%s' for window flag '%c'\n", optarg, Option);
+                    Success = false;
+                    FreeCommandChain(Chain);
+                    goto End;
+                }
             } break;
             case '?': {
                 Success = false;

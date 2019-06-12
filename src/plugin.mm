@@ -37,11 +37,15 @@
 
 #include "config.h"
 #include "controller.h"
+#include "vspace.h"
+//#include "util.h"
+#include "constants.h"
 
 extern chunkwm_log *c_log;
 
 #include "config.cpp"
 #include "controller.cpp"
+#include "vspace.cpp"
 
 #define internal static
 
