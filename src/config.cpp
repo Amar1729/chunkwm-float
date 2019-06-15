@@ -113,7 +113,7 @@ ParseWindowCommand(const char *Message, command *Chain)
     command *Command = Chain;
     while ((Option = getopt_long(Count, Args, Short, Long, NULL)) != -1) {
         switch (Option) {
-            case 's':
+            case 'd':
             case 'i':
             case 'm': {
                 if ((StringEquals(optarg, "west")) ||
@@ -130,7 +130,7 @@ ParseWindowCommand(const char *Message, command *Chain)
                     goto End;
                 }
             } break;
-            case 'd': {
+            case 's': {
                 uint32_t Size;
                 if (sscanf(optarg, "%d", &Size) == 1) {
                     command *Entry = ConstructCommand(Option, optarg);
