@@ -3,6 +3,8 @@
 
 #include <CoreGraphics/CGGeometry.h>
 
+#include "controller.h"
+
 struct region
 {
     float X, Y;
@@ -20,10 +22,11 @@ struct region_offset
 struct macos_space;
 struct virtual_space;
 
-bool ResultIsInsideRegion(region New, region Bounds);
+bool ResultIsInsideRegion(const region New, const region Bounds);
 
 region CGRectToRegion(CGRect Rect);
 region RegionFromPointAndSize(CGPoint Position, CGSize Size);
+void ConstrainResultToRegion(region *Result, const region Region, window_cmd Cmd);
 // void ConstrainRegion(CFStringRef DisplayRef, region *Region);
 // region FullscreenRegion(CFStringRef DisplayRef, virtual_space *VirtualSpace);
  

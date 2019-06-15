@@ -1,4 +1,5 @@
 #include "region.h"
+#include "controller.h"
 //#include "node.h"
 #include "vspace.h"
 #include "constants.h"
@@ -9,7 +10,7 @@
 
 #define internal static
 
-bool ResultIsInsideRegion(region New, region Bounds)
+bool ResultIsInsideRegion(const region New, const region Bounds)
 {
     bool Success =
         ((int)New.X >= (int)Bounds.X) && ((int)New.X+(int)New.Width  <= (int)Bounds.X+(int)Bounds.Width) &&
@@ -29,6 +30,35 @@ region RegionFromPointAndSize(CGPoint Position, CGSize Size)
     region Result = { (float) Position.x, (float) Position.y,
                       (float) Size.width, (float) Size.height, };
     return Result;
+}
+
+void ConstrainResultToRegion(region *Result, const region Region, window_cmd Cmd)
+{
+    if (Cmd == WindowMove) {
+        // move window to constraint
+        if ((int)Result->X < (int)Region.X) {
+            Result->X = Region.X;
+        } else if ((int)Result->Y < (int)Region.Y) {
+            Result->Y = Region.Y;
+        } else if ((int)(Result->X+Result->Width) > (int)(Region.X+Region.Width)) {
+            Result->X = (Region.X+Region.Width) - Result->Width;
+        } else if ((int)(Result->Y+Result->Height) > (int)(Region.Y+Region.Height)) {
+            Result->Y = (Region.Y+Region.Height) - Result->Height;
+        }
+    } else {
+        // resize window to constraint
+        if ((int)Result->X < (int)Region.X) {
+            Result->Width -= Region.X - Result->X;
+            Result->X = Region.X;
+        } else if ((int)Result->Y < (int)Region.Y) {
+            Result->Height -= Region.Y - Result->Y;
+            Result->Y = Region.Y;
+        } else if ((int)(Result->X+Result->Width) > (int)(Region.X+Region.Width)) {
+            Result->Width -=  (Result->X+Result->Width) - (Region.X+Region.Width);
+        } else if ((int)(Result->Y+Result->Height) > (int)(Region.Y+Region.Height)) {
+            Result->Height -=  (Result->Y+Result->Height) - (Region.Y+Region.Height);
+        }
+    }
 }
 
 // // #define OSX_MENU_BAR_HEIGHT 22.0f

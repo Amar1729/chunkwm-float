@@ -18,6 +18,7 @@
 #define CVAR_SPACE_OFFSET_GAP       "global_" _CVAR_SPACE_OFFSET_GAP
 /* ---- used in vspace to determine the screen region ---- */
 
-#define CVAR_FLOAT_STEPSIZE     "float_step_size"
+#define CVAR_FLOAT_MOVE             "float_move_step"
+#define CVAR_FLOAT_RESIZE           "float_resize_step"
 
 #endif

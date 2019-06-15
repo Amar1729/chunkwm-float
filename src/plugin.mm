@@ -360,7 +360,8 @@ Init(chunkwm_api ChunkwmAPI)
     Success = (pthread_mutex_init(&WindowsLock, NULL) == 0);
     if (!Success) goto out;
 
-    CreateCVar(CVAR_FLOAT_STEPSIZE, 0);
+    CreateCVar(CVAR_FLOAT_MOVE, 0.05f);
+    CreateCVar(CVAR_FLOAT_RESIZE, 0.025f);
 
     // from tiling:
     // for use in detecting vspace boundaries

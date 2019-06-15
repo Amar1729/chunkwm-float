@@ -3,6 +3,13 @@
 
 #include <stdint.h>
 
+enum window_cmd
+{
+    WindowMove = 0,
+    WindowIncrement = 1,
+    WindowDecrement = 2,
+};
+
 struct macos_window;
 struct macos_space;
 struct virtual_space;

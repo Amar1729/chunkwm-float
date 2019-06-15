@@ -20,13 +20,6 @@ extern macos_window *GetFocusedWindow();
 
 extern chunkwm_log *c_log;
 
-enum window_cmd
-{
-    Move = 0,
-    Increment = 1,
-    Decrement = 2,
-};
-
 region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
 {
     region Result = CGRectToRegion(AXLibGetDisplayBounds(DisplayRef));
@@ -135,33 +128,37 @@ void WindowHandler(char *Op, window_cmd Cmd)
     virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
     region Region = GetScreenDimensions(DisplayRef, VirtualSpace);
 
+    float Step;
+    if (StringEquals(Op, "north") || StringEquals(Op, "south")) {
+        Step = Region.Height;
+    } else {
+        Step = Region.Width;
+    }
+
     region Result;
     switch (Cmd) {
-        case Move : {
-            // get move cvar
-            float Step = 10.0f;
+        case WindowMove : {
+            Step *= CVarFloatingPointValue(CVAR_FLOAT_MOVE);
             CGPoint Position = _Move(Window, Op, Step);
             CGSize Size = AXLibGetWindowSize(Window->Ref);
             Result = RegionFromPointAndSize(Position, Size);
         } break ;
-        case Increment : {
-            // get resize cvar
-            float Step = 10.0f;
+        case WindowIncrement : {
+            Step *= CVarFloatingPointValue(CVAR_FLOAT_RESIZE);
             Result = _Dilate(Window, Op, Step);
         } break ;
-        case Decrement : {
-            // get resize cvar
-            //float Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-            float Step = 10.0f;
+        case WindowDecrement : {
+            Step *= CVarFloatingPointValue(CVAR_FLOAT_RESIZE);
             Result = _Dilate(Window, Op, -Step);
         } break ;
     }
 
     c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
 
-    if (ResultIsInsideRegion(Result, Region)) {
-        ResizeWindow(Window, Result);
+    if (!ResultIsInsideRegion(Result, Region)) {
+        ConstrainResultToRegion(&Result, Region, Cmd);
     }
+    ResizeWindow(Window, Result);
 
     ReleaseVirtualSpace(VirtualSpace);
     AXLibDestroySpace(Space);
@@ -170,25 +167,28 @@ void WindowHandler(char *Op, window_cmd Cmd)
 
 void MoveWindow(char *Op)
 {
-    WindowHandler(Op, Move);
+    WindowHandler(Op, WindowMove);
 }
 
 void IncWindow(char *Op)
 {
-    WindowHandler(Op, Increment);
+    WindowHandler(Op, WindowIncrement);
 }
 
 void DecWindow(char *Op)
 {
-    WindowHandler(Op, Decrement);
+    WindowHandler(Op, WindowDecrement);
 }
 
 void SetSize(char *Size)
 {
-    c_log(C_LOG_LEVEL_WARN, "setsize\n");
-    uint32_t StepSize;
-    sscanf(Size, "%d", &StepSize);
-    UpdateCVar(CVAR_FLOAT_STEPSIZE, StepSize);
+    float StepSize;
+    sscanf(Size, "%f", &StepSize);
+    if (((int)StepSize < 0) || (int(StepSize) > 1)) { return; }
+    c_log(C_LOG_LEVEL_WARN, "setsize: %f\n", StepSize);
+    // update both temporarily
+    UpdateCVar(CVAR_FLOAT_MOVE, StepSize);
+    UpdateCVar(CVAR_FLOAT_RESIZE, StepSize);
 }
 
 void QueryWindowCoord(char *Op, int SockFD)
