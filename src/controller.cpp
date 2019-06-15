@@ -11,6 +11,7 @@
 
 #include "vspace.h"
 #include "constants.h"
+#include "region.h"
 #include "misc.h"
 
 #define internal static
@@ -19,7 +20,38 @@ extern macos_window *GetFocusedWindow();
 
 extern chunkwm_log *c_log;
 
-void _Move(macos_window *Window, char *Op, int Step)
+bool ValidateCoordinates(region Region, float X, float Y, float W, float H)
+{
+    bool Success = (X > Region.X) &&
+                   (Y > Region.Y) &&
+                   ((X+W) < Region.Width) &&
+                   ((Y+H) < Region.Height);
+    return Success;
+}
+
+region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
+{
+    region Result = CGRectToRegion(AXLibGetDisplayBounds(DisplayRef));
+    // just don't constrain the region for now ?
+    // yikes probably want this!
+    //ConstrainRegion(DisplayRef, &Result);
+
+    // note - should i just allow floating windows constrained to the entire desktop?
+    // or will this approach conflict with space gaps set by tiling?
+    region_offset *Offset = VirtualSpace->Offset;
+    if (Offset) {
+        Result.X += Offset->Left;
+        Result.Y += Offset->Top;
+        Result.Width -= (Offset->Left + Offset->Right);
+        Result.Height -= (Offset->Top + Offset->Bottom);
+    }
+
+    c_log(C_LOG_LEVEL_WARN, "Region: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
+
+    return Result;
+}
+
+void _Move(macos_window *Window, char *Op, int Step/*, region Region*/)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
 
@@ -36,20 +68,24 @@ void _Move(macos_window *Window, char *Op, int Step)
         X += Step;
     }
 
+    // todo - find a good way to pass region?
+    //if (!ValidateCoordinates(Region, X, Y, AXLibGetWindowSize(Window->Ref).width, AXLibGetWindowSize(Window->Ref).height)) { return; }
+
     AXLibSetWindowPosition(Window->Ref, X, Y);
 }
 
-void _Dilate(macos_window *Window, char *Op, int Step)
+void _Dilate(macos_window *Window, char *Op, int Step, region Region)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
     CGSize Size = AXLibGetWindowSize(Window->Ref);
 
-    uint32_t X = Position.x;
-    uint32_t Y = Position.y;
-    uint32_t W = Size.width;
-    uint32_t H = Size.height;
+    float X = (float) Position.x;
+    float Y = (float) Position.y;
+    float W = (float) Size.width;
+    float H = (float) Size.height;
 
-    c_log(C_LOG_LEVEL_WARN, "%dx%d - %dx%d\n", X, Y, W, H);
+    c_log(C_LOG_LEVEL_WARN, "%fx%f - %fx%f\n", X, Y, W, H);
+    c_log(C_LOG_LEVEL_WARN, "Region: %fx%f - %fx%f\n", Region.X, Region.Y, Region.Width, Region.Height);
 
     // inc/dec comments :
     if        (StringEquals(Op, "north")) {
@@ -79,13 +115,12 @@ void _Dilate(macos_window *Window, char *Op, int Step)
         W += Step;
     }
 
-    c_log(C_LOG_LEVEL_WARN, "%dx%d - %dx%d\n", X, Y, W, H);
-    c_log(C_LOG_LEVEL_WARN, "\n");
+    c_log(C_LOG_LEVEL_WARN, "%fx%f - %fx%f\n\n", X, Y, W, H);
+
+    if (!ValidateCoordinates(Region, X, Y, W, H)) { return; }
 
     AXLibSetWindowPosition(Window->Ref, X, Y);
-    // what in the hek :
     AXLibSetWindowSize(Window->Ref, W, H);
-    // incorrect coords are being read for (?) size??? they're off by about 3
 }
 
 void ResizeWindow(macos_window *Window, char *Op, bool Increase)
@@ -108,7 +143,8 @@ void ResizeWindow(macos_window *Window, char *Op, bool Increase)
     int Step = 10;
     if (!Increase) { Step *= -1; }
 
-    _Dilate(Window, Op, Step);
+    region Region = GetScreenDimensions(DisplayRef, VirtualSpace);
+    _Dilate(Window, Op, Step, Region);
 
     ReleaseVirtualSpace(VirtualSpace);
     AXLibDestroySpace(Space);

@@ -1,7 +1,7 @@
 #ifndef PLUGIN_VSPACE_H
 #define PLUGIN_VSPACE_H
 
-//#include "region.h"
+#include "region.h"
 
 #include "../chunkwm/src/common/misc/string.h"
 #include <stdint.h>
@@ -21,12 +21,12 @@
 //    Virtual_Space_Float,
 //};
 
-//struct virtual_space_config
-//{
-//    virtual_space_mode Mode;
-//    region_offset Offset;
-//    char *TreeLayout;
-//};
+struct virtual_space_config
+{
+    //virtual_space_mode Mode;
+    region_offset Offset;
+    //char *TreeLayout;
+};
 
 // dont think i need these either
 enum virtual_space_flags
@@ -40,9 +40,9 @@ enum virtual_space_flags
 struct virtual_space
 {
     //virtual_space_mode Mode;
-    //region_offset _Offset;
+    region_offset _Offset;
 
-    //region_offset *Offset;
+    region_offset *Offset;
     //char *TreeLayout;
     //node *Tree;
     uint32_t Flags;

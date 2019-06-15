@@ -38,6 +38,7 @@
 #include "config.h"
 #include "controller.h"
 #include "vspace.h"
+#include "region.h"
 #include "misc.h"
 #include "constants.h"
 
@@ -46,6 +47,7 @@ extern chunkwm_log *c_log;
 #include "config.cpp"
 #include "controller.cpp"
 #include "vspace.cpp"
+#include "region.cpp"
 
 #define internal static
 
@@ -359,6 +361,14 @@ Init(chunkwm_api ChunkwmAPI)
     if (!Success) goto out;
 
     CreateCVar(CVAR_FLOAT_STEPSIZE, 0);
+
+    // from tiling:
+    // for use in detecting vspace boundaries
+    CreateCVar(CVAR_SPACE_OFFSET_TOP, 60.0f);
+    CreateCVar(CVAR_SPACE_OFFSET_BOTTOM, 50.0f);
+    CreateCVar(CVAR_SPACE_OFFSET_LEFT, 50.0f);
+    CreateCVar(CVAR_SPACE_OFFSET_RIGHT, 50.0f);
+    CreateCVar(CVAR_SPACE_OFFSET_GAP, 20.0f);
 
     ProcessPolicy = Process_Policy_Regular | Process_Policy_LSUIElement;
     Applications = AXLibRunningProcesses(ProcessPolicy);
