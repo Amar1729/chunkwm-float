@@ -20,12 +20,17 @@ extern macos_window *GetFocusedWindow();
 
 extern chunkwm_log *c_log;
 
-bool ValidateCoordinates(region Region, float X, float Y, float W, float H)
+enum window_cmd
 {
-    bool Success = (X > Region.X) &&
-                   (Y > Region.Y) &&
-                   ((X+W) < Region.Width) &&
-                   ((Y+H) < Region.Height);
+    Move = 0,
+    Increment = 1,
+    Decrement = 2,
+};
+
+bool ValidateCoordinates(region Bounds, region New)
+{
+    bool Success = (New.X > Bounds.X) && ((New.X+New.Width) < Bounds.Width) &&
+                   (New.Y > Bounds.Y) && ((New.Y+New.Height) < Bounds.Height);
     return Success;
 }
 
@@ -51,80 +56,77 @@ region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
     return Result;
 }
 
-void _Move(macos_window *Window, char *Op, int Step/*, region Region*/)
+CGPoint _Move(macos_window *Window, char *Op, float Step)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
 
-    uint32_t X = Position.x;
-    uint32_t Y = Position.y;
+    // original coords
+    c_log(C_LOG_LEVEL_WARN, "window: %fx%f\n", Position.x, Position.y);
 
     if        (StringEquals(Op, "north")) {
-        Y -= Step;
+        Position.y -= Step;
     } else if (StringEquals(Op, "south")) {
-        Y += Step;
+        Position.y += Step;
     } else if (StringEquals(Op, "west")) {
-        X -= Step;
+        Position.x -= Step;
     } else if (StringEquals(Op, "east")) {
-        X += Step;
+        Position.x += Step;
     }
 
-    // todo - find a good way to pass region?
-    //if (!ValidateCoordinates(Region, X, Y, AXLibGetWindowSize(Window->Ref).width, AXLibGetWindowSize(Window->Ref).height)) { return; }
-
-    AXLibSetWindowPosition(Window->Ref, X, Y);
+    return Position;
 }
 
-void _Dilate(macos_window *Window, char *Op, int Step, region Region)
+region _Dilate(macos_window *Window, char *Op, float Step)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
     CGSize Size = AXLibGetWindowSize(Window->Ref);
 
-    float X = (float) Position.x;
-    float Y = (float) Position.y;
-    float W = (float) Size.width;
-    float H = (float) Size.height;
-
-    c_log(C_LOG_LEVEL_WARN, "%fx%f - %fx%f\n", X, Y, W, H);
-    c_log(C_LOG_LEVEL_WARN, "Region: %fx%f - %fx%f\n", Region.X, Region.Y, Region.Width, Region.Height);
+    // original coords
+    c_log(C_LOG_LEVEL_WARN, "window: %fx%f - %fx%f\n", Position.x, Position.y, Size.width, Size.height);
 
     // inc/dec comments :
     if        (StringEquals(Op, "north")) {
         // has precision bleed
         // has precision bleed
-        Y -= Step;
-        H += Step;
+        Position.y -= Step;
+        Size.height += Step;
         if (Step > 0) {
-            H += Step;
+            Size.height += Step;
         }
     } else if (StringEquals(Op, "south")) {
         // NOTE - too small StepSize wont do anything here!
         // doesnt do anything
         // works fine
-        H += 20;
+        if (Step > 0) { Size.height += 20; } // hardcoded until i fix
+        else { Size.height -= 20; } // hardcoded until i fix
     } else if (StringEquals(Op, "west")) {
         // has precision bleed
         // has precision bleed
-        X -= Step;
-        W += Step;
+        Position.x -= Step;
+        Size.width += Step;
         if (Step > 0) {
-            W += Step;
+            Size.width += Step;
         }
     } else if (StringEquals(Op, "east")) {
         // works fine
         // works fine
-        W += Step;
+        Size.width += Step;
     }
 
-    c_log(C_LOG_LEVEL_WARN, "%fx%f - %fx%f\n\n", X, Y, W, H);
-
-    if (!ValidateCoordinates(Region, X, Y, W, H)) { return; }
-
-    AXLibSetWindowPosition(Window->Ref, X, Y);
-    AXLibSetWindowSize(Window->Ref, W, H);
+    return RegionFromPointAndSize(Position, Size);
 }
 
-void ResizeWindow(macos_window *Window, char *Op, bool Increase)
+void ResizeWindow(macos_window *Window, region Region)
 {
+    AXLibSetWindowPosition(Window->Ref, Region.X, Region.Y);
+    AXLibSetWindowSize(Window->Ref, Region.Width, Region.Height);
+}
+
+void WindowHandler(char *Op, window_cmd Cmd)
+{
+    macos_window *Window = GetFocusedWindow();
+    if (!Window) { return; }
+
     // make sure window is floating
     if (!AXLibHasFlags(Window, Window_Float)) {
         c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
@@ -138,13 +140,35 @@ void ResizeWindow(macos_window *Window, char *Op, bool Increase)
     ASSERT(Space);
 
     virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
-
-    //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-    int Step = 10;
-    if (!Increase) { Step *= -1; }
-
     region Region = GetScreenDimensions(DisplayRef, VirtualSpace);
-    _Dilate(Window, Op, Step, Region);
+
+    region Result;
+    switch (Cmd) {
+        case Move : {
+            // get move cvar
+            float Step = 10.0f;
+            CGPoint Position = _Move(Window, Op, Step);
+            CGSize Size = AXLibGetWindowSize(Window->Ref);
+            Result = RegionFromPointAndSize(Position, Size);
+        } break ;
+        case Increment : {
+            // get resize cvar
+            float Step = 10.0f;
+            Result = _Dilate(Window, Op, Step);
+        } break ;
+        case Decrement : {
+            // get resize cvar
+            //float Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
+            float Step = 10.0f;
+            Result = _Dilate(Window, Op, -Step);
+        } break ;
+    }
+
+    c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
+
+    if (ValidateCoordinates(Region, Result)) {
+        ResizeWindow(Window, Result);
+    }
 
     ReleaseVirtualSpace(VirtualSpace);
     AXLibDestroySpace(Space);
@@ -153,32 +177,17 @@ void ResizeWindow(macos_window *Window, char *Op, bool Increase)
 
 void MoveWindow(char *Op)
 {
-    macos_window *Window = GetFocusedWindow();
-    if (Window) {
-        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-        //ResizeWindow(Window, Op, Step);
-        _Move(Window, Op, 10);
-    }
+    WindowHandler(Op, Move);
 }
 
 void IncWindow(char *Op)
 {
-    macos_window *Window = GetFocusedWindow();
-    if (Window) {
-        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-        //ResizeWindow(Window, Op, Step);
-        ResizeWindow(Window, Op, true);
-    }
+    WindowHandler(Op, Increment);
 }
 
 void DecWindow(char *Op)
 {
-    macos_window *Window = GetFocusedWindow();
-    if (Window) {
-        //int Step = CVarIntegerValue(CVAR_FLOAT_STEPSIZE);
-        //ResizeWindow(Window, Op, -Step);
-        ResizeWindow(Window, Op, false);
-    }
+    WindowHandler(Op, Decrement);
 }
 
 void SetSize(char *Size)

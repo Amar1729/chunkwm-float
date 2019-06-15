@@ -12,8 +12,14 @@
 region CGRectToRegion(CGRect Rect)
 {
     region Result = { (float) Rect.origin.x,   (float) Rect.origin.y,
-                      (float) Rect.size.width, (float) Rect.size.height,
-                      Region_Full };
+                      (float) Rect.size.width, (float) Rect.size.height, };
+    return Result;
+}
+
+region RegionFromPointAndSize(CGPoint Position, CGSize Size)
+{
+    region Result = { (float) Position.x, (float) Position.y,
+                      (float) Size.width, (float) Size.height, };
     return Result;
 }
 
