@@ -42,61 +42,26 @@ region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
     return Result;
 }
 
-CGPoint _Move(macos_window *Window, char *Op, float Step)
+region _WindowHandler(macos_window *Window, char *Op, float Step, window_cmd Cmd)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
+    CGSize Size = AXLibGetWindowSize(Window->Ref);
 
     // original coords
     c_log(C_LOG_LEVEL_WARN, "window: %fx%f\n", Position.x, Position.y);
 
     if        (StringEquals(Op, "north")) {
         Position.y -= Step;
+        if (Cmd != WindowMove) { Size.height += Step; }
     } else if (StringEquals(Op, "south")) {
-        Position.y += Step;
+        if (Cmd != WindowMove) { Size.height += Step; }
+        else { Position.y += Step; }
     } else if (StringEquals(Op, "west")) {
         Position.x -= Step;
+        if (Cmd != WindowMove) { Size.width += Step; }
     } else if (StringEquals(Op, "east")) {
-        Position.x += Step;
-    }
-
-    return Position;
-}
-
-region _Dilate(macos_window *Window, char *Op, float Step)
-{
-    CGPoint Position = AXLibGetWindowPosition(Window->Ref);
-    CGSize Size = AXLibGetWindowSize(Window->Ref);
-
-    // original coords
-    c_log(C_LOG_LEVEL_WARN, "window: %fx%f - %fx%f\n", Position.x, Position.y, Size.width, Size.height);
-
-    // inc/dec comments :
-    if        (StringEquals(Op, "north")) {
-        // has precision bleed
-        // has precision bleed
-        Position.y -= Step;
-        Size.height += Step;
-        if (Step > 0) {
-            Size.height += Step;
-        }
-    } else if (StringEquals(Op, "south")) {
-        // NOTE - too small StepSize wont do anything here!
-        // doesnt do anything
-        // works fine
-        if (Step > 0) { Size.height += 20; } // hardcoded until i fix
-        else { Size.height -= 20; } // hardcoded until i fix
-    } else if (StringEquals(Op, "west")) {
-        // has precision bleed
-        // has precision bleed
-        Position.x -= Step;
-        Size.width += Step;
-        if (Step > 0) {
-            Size.width += Step;
-        }
-    } else if (StringEquals(Op, "east")) {
-        // works fine
-        // works fine
-        Size.width += Step;
+        if (Cmd != WindowMove) { Size.width += Step; }
+        else { Position.x += Step; }
     }
 
     return RegionFromPointAndSize(Position, Size);
@@ -135,23 +100,13 @@ void WindowHandler(char *Op, window_cmd Cmd)
         Step = Region.Width;
     }
 
-    region Result;
     switch (Cmd) {
-        case WindowMove : {
-            Step *= CVarFloatingPointValue(CVAR_FLOAT_MOVE);
-            CGPoint Position = _Move(Window, Op, Step);
-            CGSize Size = AXLibGetWindowSize(Window->Ref);
-            Result = RegionFromPointAndSize(Position, Size);
-        } break ;
-        case WindowIncrement : {
-            Step *= CVarFloatingPointValue(CVAR_FLOAT_RESIZE);
-            Result = _Dilate(Window, Op, Step);
-        } break ;
-        case WindowDecrement : {
-            Step *= CVarFloatingPointValue(CVAR_FLOAT_RESIZE);
-            Result = _Dilate(Window, Op, -Step);
-        } break ;
+        case WindowMove :      { Step *=  CVarFloatingPointValue(CVAR_FLOAT_MOVE);   } break ;
+        case WindowIncrement : { Step *=  CVarFloatingPointValue(CVAR_FLOAT_RESIZE); } break ;
+        case WindowDecrement : { Step *= -CVarFloatingPointValue(CVAR_FLOAT_RESIZE); } break ;
     }
+
+    region Result = _WindowHandler(Window, Op, Step, Cmd);
 
     c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
 
