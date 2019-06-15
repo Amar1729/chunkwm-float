@@ -23,12 +23,6 @@ extern chunkwm_log *c_log;
 region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
 {
     region Result = CGRectToRegion(AXLibGetDisplayBounds(DisplayRef));
-    // just don't constrain the region for now ?
-    // yikes probably want this!
-    //ConstrainRegion(DisplayRef, &Result);
-
-    // note - should i just allow floating windows constrained to the entire desktop?
-    // or will this approach conflict with space gaps set by tiling?
     region_offset *Offset = VirtualSpace->Offset;
     if (Offset) {
         Result.X += Offset->Left;

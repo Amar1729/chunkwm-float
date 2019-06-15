@@ -363,13 +363,10 @@ Init(chunkwm_api ChunkwmAPI)
     CreateCVar(CVAR_FLOAT_MOVE, 0.05f);
     CreateCVar(CVAR_FLOAT_RESIZE, 0.025f);
 
-    // from tiling:
-    // for use in detecting vspace boundaries
-    CreateCVar(CVAR_SPACE_OFFSET_TOP, 60.0f);
-    CreateCVar(CVAR_SPACE_OFFSET_BOTTOM, 50.0f);
-    CreateCVar(CVAR_SPACE_OFFSET_LEFT, 50.0f);
-    CreateCVar(CVAR_SPACE_OFFSET_RIGHT, 50.0f);
-    CreateCVar(CVAR_SPACE_OFFSET_GAP, 20.0f);
+    CreateCVar(CVAR_FLOAT_OFFSET_TOP, 60.0f);
+    CreateCVar(CVAR_FLOAT_OFFSET_BOTTOM, 50.0f);
+    CreateCVar(CVAR_FLOAT_OFFSET_LEFT, 50.0f);
+    CreateCVar(CVAR_FLOAT_OFFSET_RIGHT, 50.0f);
 
     ProcessPolicy = Process_Policy_Regular | Process_Policy_LSUIElement;
     Applications = AXLibRunningProcesses(ProcessPolicy);

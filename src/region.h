@@ -15,7 +15,6 @@ struct region_offset
 {
     float Top, Bottom;
     float Left, Right;
-    float Gap;
 };
 
 // struct node;
