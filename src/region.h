@@ -29,20 +29,11 @@ struct region_offset
 };
 
 // struct node;
-// struct preselect_node;
 struct macos_space;
 struct virtual_space;
 
 region CGRectToRegion(CGRect Rect);
-// region RoundPreselRegion(region Region, CGPoint Position, CGSize Size);
 // void ConstrainRegion(CFStringRef DisplayRef, region *Region);
 // region FullscreenRegion(CFStringRef DisplayRef, virtual_space *VirtualSpace);
-// 
-// void CreateNodeRegion(node *Node, region_type Type, macos_space *Space, virtual_space *VirtualSpace);
-// void CreateNodeRegionRecursive(node *Node, bool Optimal, macos_space *Space, virtual_space *VirtualSpace);
-// 
-// void CreatePreselectRegion(preselect_node *Preselect, region_type Type, macos_space *Space, virtual_space *VirtualSpace);
-// 
-// void ResizeNodeRegion(node *Node, macos_space *Space, virtual_space *VirtualSpace);
  
  #endif
