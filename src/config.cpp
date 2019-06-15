@@ -106,7 +106,7 @@ ParseWindowCommand(const char *Message, command *Chain)
         { "inc", required_argument, NULL, 'i' },
         { "dec", required_argument, NULL, 'd' },
         { "move", required_argument, NULL, 'm' },
-        { "size", required_argument, NULL, 's' },
+        { "step", required_argument, NULL, 's' },
         { NULL, 0, NULL, 0 }
     };
 
@@ -131,8 +131,8 @@ ParseWindowCommand(const char *Message, command *Chain)
                 }
             } break;
             case 's': {
-                uint32_t Size;
-                if (sscanf(optarg, "%d", &Size) == 1) {
+                float Step;
+                if (sscanf(optarg, "%f", &Step) == 1) {
                     command *Entry = ConstructCommand(Option, optarg);
                     Command->Next = Entry;
                     Command = Entry;
