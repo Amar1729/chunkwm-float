@@ -81,9 +81,9 @@ command_func WindowCommandDispatch(char Flag)
     switch (Flag) {
     //case 'a': return AllCycle;          break;
     //case 'f': return FloatCycle;        break;
-    case 'm': return MoveWindow;     break;
-    case 'i': return IncWindow;      break;
-    case 'd': return DecWindow;      break;
+    case 'm': return MoveWindow;        break;
+    case 'i': return IncWindow;         break;
+    case 'd': return DecWindow;         break;
     case 's': return TemporaryStep;     break;
     //case 'p': return PresetWindow;      break;
 
