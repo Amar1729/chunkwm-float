@@ -84,7 +84,7 @@ command_func WindowCommandDispatch(char Flag)
     case 'm': return MoveWindow;     break;
     case 'i': return IncWindow;      break;
     case 'd': return DecWindow;      break;
-    case 's': return SetSize;      break;
+    case 's': return TemporaryStep;     break;
     //case 'p': return PresetWindow;      break;
 
     // NOTE(koekeishiya): silence compiler warning.

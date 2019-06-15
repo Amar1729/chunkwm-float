@@ -129,7 +129,7 @@ void DecWindow(char *Op)
     WindowHandler(Op, WindowDecrement);
 }
 
-void SetSize(char *Size)
+void TemporaryStep(char *Size)
 {
     float StepSize;
     sscanf(Size, "%f", &StepSize);

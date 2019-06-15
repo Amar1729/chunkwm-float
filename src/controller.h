@@ -17,7 +17,8 @@ struct virtual_space;
 void IncWindow(char *Op);
 void DecWindow(char *Op);
 void MoveWindow(char *Op);
-void SetSize(char *Size);
+void TemporaryStep(char *Size);
+
 void QueryWindowCoord(char *Op, int SockFD);
 
 #endif
