@@ -228,10 +228,22 @@ void CommandCallback(int SockFD, const char *Type, const char *Message)
         command Chain = {};
         bool Success = ParseWindowCommand(Message, &Chain);
         if (Success) {
+            // restore original step sizes
+            float move_step = CVarFloatingPointValue(CVAR_FLOAT_MOVE);
+            float resize_step = CVarFloatingPointValue(CVAR_FLOAT_RESIZE);
+
             command *Command = &Chain;
             while ((Command = Command->Next)) {
                 c_log(C_LOG_LEVEL_WARN, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
                 (*WindowCommandDispatch(Command->Flag))(Command->Arg);
+            }
+
+            if (move_step != CVarFloatingPointValue(CVAR_FLOAT_MOVE)) {
+                UpdateCVar(CVAR_FLOAT_MOVE, move_step);
+            }
+
+            if (resize_step != CVarFloatingPointValue(CVAR_FLOAT_RESIZE)) {
+                UpdateCVar(CVAR_FLOAT_RESIZE, resize_step);
             }
         }
     } else {
