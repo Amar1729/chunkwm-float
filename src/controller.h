@@ -8,5 +8,6 @@ struct macos_space;
 struct virtual_space;
 
 void FloatWindow(macos_window *Window);
+void QueryWindowCoord(char *Op, int SockFD);
 
 #endif

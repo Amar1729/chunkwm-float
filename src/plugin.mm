@@ -35,9 +35,12 @@
 #include "../chunkwm/src/common/misc/workspace.mm"
 #include "../chunkwm/src/common/border/border.mm"
 
-//#include "util.cpp"
+#include "config.h"
 #include "controller.h"
 
+extern chunkwm_log *c_log;
+
+#include "config.cpp"
 #include "controller.cpp"
 
 #define internal static
@@ -45,15 +48,21 @@
 bool DoFloatSpace(CGSSpaceID SpaceId);
 int NumberOfWindowsOnSpace(CGSSpaceID SpaceId);
 
+typedef std::map<pid_t, macos_application *> macos_application_map;
+typedef macos_application_map::iterator macos_application_map_it;
+
 typedef std::map<uint32_t, macos_window *> macos_window_map;
 typedef macos_window_map::iterator macos_window_map_it;
 
 internal const char *PluginName = "float";
 internal const char *PluginVersion = "0.1.0";
-internal chunkwm_api API;
 
+internal macos_application_map Applications;
 internal macos_window_map Windows;
 internal pthread_mutex_t WindowsLock;
+internal event_tap EventTap;
+internal chunkwm_api API;
+chunkwm_log *c_log;
 
 internal const char *HelpMessage
     = "Floating window handler\n";
@@ -112,19 +121,96 @@ macos_window *GetFocusedWindow()
     return WindowId ? GetWindowByID(WindowId) : NULL;
 }
 
-bool IsWindowValid(macos_window *Window)
+// NOTE(koekeishiya): Caller is responsible for making sure that the window is not a dupe.
+internal void
+AddWindowToCollection(macos_window *Window)
 {
-    bool Result;
-    if (AXLibHasFlags(Window, Window_Invalid)) {
-        Result = false;
-    } else if (AXLibHasFlags(Window, Window_ForceTile)) {
-        Result = true;
-    } else {
-        Result = ((AXLibIsWindowStandard(Window)) &&
-                  (AXLibHasFlags(Window, Window_Movable)) &&
-                  (AXLibHasFlags(Window, Window_Resizable)));
+    if (!Window->Id) return;
+    pthread_mutex_lock(&WindowsLock);
+    Windows[Window->Id] = Window;
+    pthread_mutex_unlock(&WindowsLock);
+    //ApplyRulesForWindow(Window);
+}
+
+internal macos_window *
+RemoveWindowFromCollection(macos_window *Window)
+{
+    pthread_mutex_lock(&WindowsLock);
+    macos_window *Result = _GetWindowByID(Window->Id);
+    if (Result) {
+        Windows.erase(Window->Id);
     }
+    pthread_mutex_unlock(&WindowsLock);
     return Result;
+}
+
+internal void
+ClearWindowCache()
+{
+    pthread_mutex_lock(&WindowsLock);
+    for (macos_window_map_it It = Windows.begin(); It != Windows.end(); ++It) {
+        macos_window *Window = It->second;
+        AXLibDestroyWindow(Window);
+    }
+    Windows.clear();
+    pthread_mutex_unlock(&WindowsLock);
+}
+
+internal void
+AddApplicationWindowList(macos_application *Application)
+{
+    macos_window **WindowList = AXLibWindowListForApplication(Application);
+    if (!WindowList) {
+        return;
+    }
+
+    macos_window **List = WindowList;
+    macos_window *Window;
+    while ((Window = *List++)) {
+        if (GetWindowByID(Window->Id)) {
+            AXLibDestroyWindow(Window);
+        } else {
+            AddWindowToCollection(Window);
+        }
+    }
+
+    free(WindowList);
+}
+
+internal void
+UpdateWindowCollection()
+{
+    for (macos_application_map_it It = Applications.begin(); It != Applications.end(); ++It) {
+        macos_application *Application = It->second;
+        AddApplicationWindowList(Application);
+    }
+}
+
+internal void
+AddApplication(macos_application *Application)
+{
+    Applications[Application->PID] = Application;
+}
+
+internal void
+RemoveApplication(macos_application *Application)
+{
+    macos_application_map_it It = Applications.find(Application->PID);
+    if (It != Applications.end()) {
+        macos_application *Copy = It->second;
+        AXLibDestroyApplication(Copy);
+        Applications.erase(Application->PID);
+    }
+}
+
+internal void
+ClearApplicationCache()
+{
+    for (macos_application_map_it It = Applications.begin(); It != Applications.end(); ++It) {
+        macos_application *Application = It->second;
+        AXLibDestroyApplication(Application);
+    }
+    Applications.clear();
 }
 
 internal void
@@ -139,11 +225,6 @@ void BroadcastFocusedWindowFloating(macos_window *Window)
     uint32_t Status = (uint32_t) AXLibHasFlags(Window, Window_Float);
     uint32_t Data[2] = { Window->Id, Status };
     API.Broadcast(PluginName, "focused_window_float", (char *) Data, sizeof(Data));
-}
-
-internal void
-CommandHandler(void *Data)
-{
 }
 
 internal bool
@@ -169,6 +250,30 @@ GetSpaceAndDesktopId(macos_space **SpaceDest, unsigned *IdDest)
     return true;
 }
 
+internal void
+Handler_Daemon(void *Data)
+{
+    chunkwm_payload *Payload = (chunkwm_payload *) Data;
+    CommandCallback(Payload->SockFD, Payload->Command, Payload->Message);
+}
+
+internal void
+Handler_WindowCreated(void *Data)
+{
+    macos_window *Window = (macos_window *) Data;
+    macos_window *Copy = AXLibCopyWindow(Window);
+    AddWindowToCollection(Copy);
+    // TODO - float window here if need be
+}
+
+internal void
+Handler_WindowDestroyed(void *Data)
+{
+    macos_window *Window = (macos_window *) Data;
+    macos_window *Copy = AXLibCopyWindow(Window);
+    RemoveWindowFromCollection(Copy);
+}
+
 /*
  * NOTE(koekeishiya):
  * parameter: const char *Node
@@ -177,8 +282,15 @@ GetSpaceAndDesktopId(macos_space **SpaceDest, unsigned *IdDest)
  * */
 PLUGIN_MAIN_FUNC(PluginMain)
 {
-    if (StringsAreEqual(Node, "chunkwm_daemon_command")) {
-        CommandHandler(Data);
+    if (StringEquals(Node, "chunkwm_export_window_created")) {
+        Handler_WindowCreated(Data);
+        return true;
+    } else if (StringEquals(Node, "chunkwm_export_window_destroyed")) {
+        Handler_WindowDestroyed(Data);
+        return true;
+    } else if (StringsAreEqual(Node, "chunkwm_daemon_command")) {
+        Handler_Daemon(Data);
+        return true;
     } else {
         macos_space *Space;
         unsigned DesktopId = 1;
@@ -192,12 +304,62 @@ PLUGIN_MAIN_FUNC(PluginMain)
         }
 
         int NumberOfWindows = NumberOfWindowsOnSpace(Space->Id);
-        bool Floating = NumberOfWindows == 1 && DoFloatSpace(Space->Id);
+        bool Floating = NumberOfWindows <= 5; // && DoFloatSpace(Space->Id);
+        //c_log(C_LOG_LEVEL_WARN, "number of windows: %d\n", NumberOfWindows);
 
         return Floating;
     }
 
     return false;
+}
+
+internal bool
+Init(chunkwm_api ChunkwmAPI)
+{
+    bool Success;
+    std::vector<macos_application *> Applications;
+    uint32_t ProcessPolicy;
+
+    macos_space *Space;
+    unsigned DesktopId;
+
+    API = ChunkwmAPI;
+    c_log = API.Log;
+    //BeginCVars(&API);
+
+    Success = (pthread_mutex_init(&WindowsLock, NULL) == 0);
+    if (!Success) goto out;
+
+    // create cvars
+
+    ProcessPolicy = Process_Policy_Regular | Process_Policy_LSUIElement;
+    Applications = AXLibRunningProcesses(ProcessPolicy);
+    for (size_t Index = 0; Index < Applications.size(); ++Index) {
+        macos_application *Application = Applications[Index];
+        AddApplication(Application);
+        AddApplicationWindowList(Application);
+    }
+
+    //Success = AXLibActiveSpace(&Space);
+    //ASSERT(Success);
+
+    goto out;
+
+    // TODO - only clear these if init is unsuccessful
+    ClearApplicationCache();
+    ClearWindowCache();
+
+out:
+    c_log(C_LOG_LEVEL_WARN, "Initialized float plugin.\n");
+    return Success;
+}
+
+internal void
+Deinit()
+{
+    //EndEventTap
+    ClearApplicationCache();
+    ClearWindowCache();
 }
 
 /*
@@ -207,13 +369,13 @@ PLUGIN_MAIN_FUNC(PluginMain)
  */
 PLUGIN_BOOL_FUNC(PluginInit)
 {
-    API = ChunkwmAPI;
-    // in the future, can possibly have a FloatAllSpaces for startup
-    return true;
+    // TODO - in the future, can possibly have a FloatAllSpaces for startup
+    return Init(ChunkwmAPI);
 }
 
 PLUGIN_VOID_FUNC(PluginDeInit)
 {
+    Deinit();
 }
 
 // NOTE(koekeishiya): Initialize plugin function pointers.
@@ -233,9 +395,11 @@ chunkwm_plugin_export Subscriptions[] = {
     chunkwm_export_window_destroyed,
     chunkwm_export_window_minimized,
     chunkwm_export_window_deminimized,
+    chunkwm_export_window_focused,
 
-    chunkwm_export_display_changed,
     chunkwm_export_space_changed,
+    chunkwm_export_display_changed,
+    chunkwm_export_display_resized,
 };
 // clang-format on
 CHUNKWM_PLUGIN_SUBSCRIBE(Subscriptions)
