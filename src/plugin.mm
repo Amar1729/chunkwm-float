@@ -38,7 +38,7 @@
 #include "config.h"
 #include "controller.h"
 #include "vspace.h"
-//#include "util.h"
+#include "misc.h"
 #include "constants.h"
 
 extern chunkwm_log *c_log;
@@ -71,11 +71,20 @@ chunkwm_log *c_log;
 internal const char *HelpMessage
     = "Floating window handler\n";
 
-inline bool
-StringsAreEqual(const char *A, const char *B)
+/*
+ * Floats focused window.
+ */
+internal void
+DoFloatWindow(void)
 {
-    bool Result = (strcmp(A, B) == 0);
-    return Result;
+    API.Log(C_LOG_LEVEL_DEBUG, "chunkwm-float: floating focused window.\n");
+
+    char *FloatCommand = (char *) malloc(
+        sizeof(char) * (strlen("chunkc tiling::window --toggle float")));
+
+    sprintf(FloatCommand, "chunkc tiling::window --toggle float");
+
+    system(FloatCommand);
 }
 
 /*
@@ -344,12 +353,12 @@ Init(chunkwm_api ChunkwmAPI)
 
     API = ChunkwmAPI;
     c_log = API.Log;
-    //BeginCVars(&API);
+    BeginCVars(&API);
 
     Success = (pthread_mutex_init(&WindowsLock, NULL) == 0);
     if (!Success) goto out;
 
-    // create cvars
+    CreateCVar(CVAR_FLOAT_STEPSIZE, 0);
 
     ProcessPolicy = Process_Policy_Regular | Process_Policy_LSUIElement;
     Applications = AXLibRunningProcesses(ProcessPolicy);
@@ -432,7 +441,7 @@ CHUNKWM_PLUGIN(PluginName, PluginVersion);
 bool
 DoFloatSpace(CGSSpaceID SpaceId)
 {
-    API.Log(C_LOG_LEVEL_DEBUG, "float: DoFloatSpace called.\n");
+    API.Log(C_LOG_LEVEL_DEBUG, "chunkwm-float: DoFloatSpace called.\n");
 
     std::vector<macos_application *> ApplicationList
         = AXLibRunningProcesses(Process_Policy_Regular);
@@ -447,7 +456,7 @@ DoFloatSpace(CGSSpaceID SpaceId)
         while ((Window = *WindowList++)) {
             if (AXLibSpaceHasWindow(SpaceId, Window->Id)
                 && !AXLibHasFlags(Window, Window_Minimized)) {
-                FloatWindow(Window);
+                DoFloatWindow();
             }
         }
     }
