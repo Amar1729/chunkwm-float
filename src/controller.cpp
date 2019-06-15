@@ -27,13 +27,6 @@ enum window_cmd
     Decrement = 2,
 };
 
-bool ValidateCoordinates(region Bounds, region New)
-{
-    bool Success = (New.X > Bounds.X) && ((New.X+New.Width) < Bounds.Width) &&
-                   (New.Y > Bounds.Y) && ((New.Y+New.Height) < Bounds.Height);
-    return Success;
-}
-
 region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
 {
     region Result = CGRectToRegion(AXLibGetDisplayBounds(DisplayRef));
@@ -166,7 +159,7 @@ void WindowHandler(char *Op, window_cmd Cmd)
 
     c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
 
-    if (ValidateCoordinates(Region, Result)) {
+    if (ResultIsInsideRegion(Result, Region)) {
         ResizeWindow(Window, Result);
     }
 

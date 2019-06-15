@@ -20,6 +20,8 @@ struct region_offset
 struct macos_space;
 struct virtual_space;
 
+bool ResultIsInsideRegion(region New, region Bounds);
+
 region CGRectToRegion(CGRect Rect);
 region RegionFromPointAndSize(CGPoint Position, CGSize Size);
 // void ConstrainRegion(CFStringRef DisplayRef, region *Region);

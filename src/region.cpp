@@ -9,6 +9,14 @@
 
 #define internal static
 
+bool ResultIsInsideRegion(region New, region Bounds)
+{
+    bool Success =
+        ((int)New.X >= (int)Bounds.X) && ((int)New.X+(int)New.Width  <= (int)Bounds.X+(int)Bounds.Width) &&
+        ((int)New.Y >= (int)Bounds.Y) && ((int)New.Y+(int)New.Height <= (int)Bounds.Y+(int)Bounds.Height);
+    return Success;
+}
+
 region CGRectToRegion(CGRect Rect)
 {
     region Result = { (float) Rect.origin.x,   (float) Rect.origin.y,
