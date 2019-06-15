@@ -1,7 +1,13 @@
+/*
+ * NOTE
+ *
+ * Copy from tiling plugin
+ *
+ * In its current state, this file is a pared-down version of vspace.cpp from the
+ * chunkwm tiling plugin, reworked for a subset of its original functionality
+ */
 #include "vspace.h"
-//#include "node.h"
 #include "constants.h"
-#include "misc.h"
 
 #include "../chunkwm/src/common/accessibility/element.h"
 #include "../chunkwm/src/common/accessibility/display.h"
