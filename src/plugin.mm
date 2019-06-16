@@ -315,6 +315,108 @@ Handler_WindowDestroyed(void *Data)
     RemoveWindowFromCollection(Copy);
 }
 
+internal void
+Handler_ApplicationActivated(void *Data)
+{
+    macos_application *Application = (macos_application *) Data;
+    AXUIElementRef WindowRef = AXLibGetFocusedWindow(Application->Ref);
+    if (WindowRef) {
+        uint32_t WindowId = AXLibGetWindowID(WindowRef);
+        CFRelease(WindowRef);
+        // TODO
+        //WindowFocusedHandler(WindowId);
+    }
+}
+
+internal void
+Handler_ApplicationLaunched(void *Data)
+{
+    macos_application *Application = (macos_application *) Data;
+
+    macos_window **WindowList = AXLibWindowListForApplication(Application);
+    if (WindowList) {
+        macos_window **List = WindowList;
+        macos_window *Window;
+        while ((Window = *List++)) {
+            if (GetWindowByID(Window->Id)) {
+                AXLibDestroyWindow(Window);
+            } else {
+                AddWindowToCollection(Window);
+                //if (RuleChangedDesktop(Window->Flags)) continue;
+                //if (RuleTiledWindow(Window->Flags))    continue;
+                //TileWindow(Window);
+            }
+        }
+
+        free(WindowList);
+    }
+}
+
+internal void
+Handler_ApplicationTerminated(void *Data)
+{
+    macos_application *Application = (macos_application *) Data;
+    RemoveApplication(Application);
+    //RebalanceWindowTree();
+}
+
+//internal void
+//Handler_ApplicationHidden(void *Data)
+//{
+//    //RebalanceWindowTree();
+//}
+
+internal void
+Handler_ApplicationUnhidden(void *Data)
+{
+    macos_application *Application = (macos_application *) Data;
+
+    macos_space *Space;
+    macos_window *Window, **List, **WindowList;
+
+    bool Success = AXLibActiveSpace(&Space);
+    ASSERT(Success);
+
+    if (Space->Type != kCGSSpaceUser) {
+        goto space_free;
+    }
+
+    List = WindowList = AXLibWindowListForApplication(Application);
+    if (!WindowList) {
+        goto space_free;
+    }
+
+    while ((Window = *List++)) {
+        macos_window *Copy = RemoveWindowFromCollection(Window);
+        if (Copy) {
+            AXLibDestroyWindow(Copy);
+        }
+
+        AddWindowToCollection(Window);
+
+        /*
+        if (Window && AXLibSpaceHasWindow(Space->Id, Window->Id)) {
+            uint32_t LastFocusedWindowId = CVarUnsignedValue(CVAR_LAST_FOCUSED_WINDOW);
+            if (LastFocusedWindowId) {
+                UpdateCVar(CVAR_BSP_INSERTION_POINT, LastFocusedWindowId);
+            }
+
+            TileWindow(Window);
+
+            if (LastFocusedWindowId) {
+                UpdateCVar(CVAR_BSP_INSERTION_POINT, 0);
+            }
+        }
+        */
+    }
+
+    free(WindowList);
+
+space_free:
+    AXLibDestroySpace(Space);
+}
+
+
 /*
  * NOTE(koekeishiya):
  * parameter: const char *Node
@@ -328,6 +430,21 @@ PLUGIN_MAIN_FUNC(PluginMain)
         return true;
     } else if (StringEquals(Node, "chunkwm_export_window_destroyed")) {
         Handler_WindowDestroyed(Data);
+        return true;
+    } else if (StringEquals(Node, "chunkwm_export_application_activated")) {
+        Handler_ApplicationActivated(Data);
+        return true;
+    } else if (StringEquals(Node, "chunkwm_export_application_launched")) {
+        Handler_ApplicationLaunched(Data);
+        return true;
+    //} else if (StringEquals(Node, "chunkwm_export_application_hidden")) {
+    //    Handler_ApplicationHidden(Data);
+    //    return true;
+    } else if (StringEquals(Node, "chunkwm_export_application_unhidden")) {
+        Handler_ApplicationUnhidden(Data);
+        return true;
+    } else if (StringEquals(Node, "chunkwm_export_application_terminated")) {
+        Handler_ApplicationTerminated(Data);
         return true;
     } else if (StringEquals(Node, "chunkwm_daemon_command")) {
         Handler_Daemon(Data);
