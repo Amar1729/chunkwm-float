@@ -11,7 +11,7 @@ Clone this repo, `cd src/ && make`, and copy the resulting plugin under `bin/` i
 
 ## Usage
 
-Make sure to add `chunkc core::load float.so` to `~/..chunkwmrc` !
+Make sure to add `chunkc core::load float.so` to `~/.chunkwmrc` !
 
 Command-line usage
 
