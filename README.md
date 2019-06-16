@@ -4,6 +4,10 @@ Plugin to help with better floating window management in chunkwm.
 
 See [issue #1](https://github.com/Amar1729/chunkwm-float/issues/1) for planned/work-in-progress features.
 
+## attribution
+Huge thanks to koekeishiya for all their work on `chunkwm` and its plugin architecture.
+This plugin is *heavily* based off of the included tiling plugin, just pared down to include relevant functions.
+
 ## Installation
 
 I may set up a tap soon, but for now only installation is from source.  
