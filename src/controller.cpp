@@ -36,6 +36,55 @@ region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
     return Result;
 }
 
+void ResizeWindow(macos_window *Window, region Region)
+{
+    AXLibSetWindowPosition(Window->Ref, Region.X, Region.Y);
+    AXLibSetWindowSize(Window->Ref, Region.Width, Region.Height);
+}
+
+void _CenterWindow(macos_window *Window, region Screen)
+{
+    //CGPoint Position = AXLibGetWindowPosition(Window->Ref);
+    CGSize Size = AXLibGetWindowSize(Window->Ref);
+
+    float newX = (Screen.Width / 2) - (Size.width / 2);
+    float newY = (Screen.Height / 2) - (Size.height / 2);
+
+    CGPoint Position;
+    Position.x = newX;
+    Position.y = newY;
+
+    region Result = RegionFromPointAndSize(Position, Size);
+    ResizeWindow(Window, Result);
+}
+
+void CenterWindow(char *Unused)
+{
+    macos_window *Window = GetFocusedWindow();
+    if (!Window) { return; }
+
+    // make sure window is floating
+    if (!AXLibHasFlags(Window, Window_Float)) {
+        c_log(C_LOG_LEVEL_DEBUG, "chunkwm-float: window %d not floating\n", Window->Id);
+        return;
+    }
+
+    CFStringRef DisplayRef = AXLibGetDisplayIdentifierFromWindowRect(Window->Position, Window->Size);
+    ASSERT(DisplayRef);
+
+    macos_space *Space = AXLibActiveSpace(DisplayRef);
+    ASSERT(Space);
+
+    virtual_space *VirtualSpace = AcquireVirtualSpace(Space);
+    region Screen = GetScreenDimensions(DisplayRef, VirtualSpace);
+
+    _CenterWindow(Window, Screen);
+
+    ReleaseVirtualSpace(VirtualSpace);
+    AXLibDestroySpace(Space);
+    CFRelease(DisplayRef);
+}
+
 region _WindowHandler(macos_window *Window, char *Op, region Screen) {
     // set the absolute size of a floating window
     // input format: fxf:fxf (fractions of screen)
@@ -98,12 +147,6 @@ region _WindowHandler(macos_window *Window, char *Op, float Step, window_cmd Cmd
     }
 
     return RegionFromPointAndSize(Position, Size);
-}
-
-void ResizeWindow(macos_window *Window, region Region)
-{
-    AXLibSetWindowPosition(Window->Ref, Region.X, Region.Y);
-    AXLibSetWindowSize(Window->Ref, Region.Width, Region.Height);
 }
 
 void WindowHandler(char *Op, window_cmd Cmd)

@@ -19,6 +19,7 @@ void IncWindow(char *Op);
 void DecWindow(char *Op);
 void MoveWindow(char *Op);
 void AbsoluteSize(char *Op);
+void CenterWindow(char *Unused);
 void TemporaryStep(char *Size);
 
 void QueryWindowCoord(char *Op, int SockFD);

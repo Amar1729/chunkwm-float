@@ -87,6 +87,7 @@ command_func WindowCommandDispatch(char Flag)
     case 'i': return IncWindow;         break;
     case 'd': return DecWindow;         break;
     case 'a': return AbsoluteSize;      break;
+    case 'c': return CenterWindow;      break;
     case 's': return TemporaryStep;     break;
     //case 'p': return PresetWindow;      break;
 
@@ -110,6 +111,7 @@ ParseWindowCommand(const char *Message, command *Chain)
         { "dec", required_argument, NULL, 'd' },
         { "move", required_argument, NULL, 'm' },
         { "absolute", required_argument, NULL, 'a' },
+        { "center", no_argument, NULL, 'c' },
         { "step", required_argument, NULL, 's' },
         { NULL, 0, NULL, 0 }
     };
@@ -159,6 +161,11 @@ ParseWindowCommand(const char *Message, command *Chain)
                     FreeCommandChain(Chain);
                     goto End;
                 }
+            } break;
+            case 'c': {
+                command *Entry = ConstructCommand(Option, NULL);
+                Command->Next = Entry;
+                Command = Entry;
             } break;
             case '?': {
                 Success = false;
