@@ -31,8 +31,6 @@ region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
         Result.Height -= (Offset->Top + Offset->Bottom);
     }
 
-    c_log(C_LOG_LEVEL_WARN, "Region: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
-
     return Result;
 }
 
@@ -124,13 +122,13 @@ err:
     return Result;
 }
 
+/*
+ * Modify window coordinates for a WindowMove, WindowDecrement, or WindowIncrement
+ */
 region _WindowHandler(macos_window *Window, char *Op, float Step, window_cmd Cmd)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
     CGSize Size = AXLibGetWindowSize(Window->Ref);
-
-    // original coords
-    c_log(C_LOG_LEVEL_WARN, "window: %fx%f\n", Position.x, Position.y);
 
     if        (StringEquals(Op, "north")) {
         Position.y -= Step;
@@ -188,8 +186,6 @@ void WindowHandler(char *Op, window_cmd Cmd)
         Result = _WindowHandler(Window, Op, Step, Cmd);
     }
 
-    c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
-
     if (!ResultIsInsideRegion(Result, Region)) {
         ConstrainResultToRegion(&Result, Region, Cmd);
     }
@@ -217,7 +213,6 @@ void DecWindow(char *Op)
 
 void AbsoluteSize(char *Op)
 {
-    c_log(C_LOG_LEVEL_WARN, "Setting size: %s\n", Op);
     WindowHandler(Op, WindowSetSize);
 }
 
@@ -226,7 +221,6 @@ void TemporaryStep(char *Size)
     float StepSize;
     sscanf(Size, "%f", &StepSize);
     if (((int)StepSize < 0) || (int(StepSize) > 1)) { return; }
-    c_log(C_LOG_LEVEL_WARN, "setsize: %f\n", StepSize);
     // update both temporarily
     UpdateCVar(CVAR_FLOAT_MOVE, StepSize);
     UpdateCVar(CVAR_FLOAT_RESIZE, StepSize);

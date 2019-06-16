@@ -242,7 +242,7 @@ void CommandCallback(int SockFD, const char *Type, const char *Message)
         if (Success) {
             command *Command = &Chain;
             while ((Command = Command->Next)) {
-                c_log(C_LOG_LEVEL_WARN, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
+                c_log(C_LOG_LEVEL_DEBUG, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
                 (*QueryCommandDispatch(Command->Flag))(Command->Arg, SockFD);
             }
 
@@ -258,7 +258,7 @@ void CommandCallback(int SockFD, const char *Type, const char *Message)
 
             command *Command = &Chain;
             while ((Command = Command->Next)) {
-                c_log(C_LOG_LEVEL_WARN, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
+                c_log(C_LOG_LEVEL_DEBUG, "    command: '%c', arg: '%s'\n", Command->Flag, Command->Arg);
                 (*WindowCommandDispatch(Command->Flag))(Command->Arg);
             }
 

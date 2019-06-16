@@ -503,7 +503,7 @@ Init(chunkwm_api ChunkwmAPI)
     ClearWindowCache();
 
 out:
-    c_log(C_LOG_LEVEL_WARN, "Initialized float plugin.\n");
+    c_log(C_LOG_LEVEL_DEBUG, "Initialized float plugin.\n");
     return Success;
 }
 
