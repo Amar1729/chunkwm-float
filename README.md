@@ -40,6 +40,9 @@ $ chunkc float::window
   X_initial Y_initial X_final Y_final
     e.g. 0.0x0.0:0.5x1.0 fills entire left half of screen)
 
+--center|-c
+  Center a floating window.
+
 --step|-s %f
   Temporary step size ratio for --move|--inc|--dec.
   %f is a float between 0 and 1.
