@@ -18,6 +18,8 @@
 
 #define local_persist static
 
+extern chunkwm_log *c_log;
+
 inline char **
 BuildArguments(const char *Message, int *Count)
 {
