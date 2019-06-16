@@ -77,7 +77,7 @@ internal const char *HelpMessage
  * Floats focused window.
  */
 internal void
-DoFloatWindow(void)
+ForceFloatWin(void)
 {
     API.Log(C_LOG_LEVEL_DEBUG, "chunkwm-float: floating focused window.\n");
 
@@ -581,7 +581,7 @@ DoFloatSpace(CGSSpaceID SpaceId)
         while ((Window = *WindowList++)) {
             if (AXLibSpaceHasWindow(SpaceId, Window->Id)
                 && !AXLibHasFlags(Window, Window_Minimized)) {
-                DoFloatWindow();
+                ForceFloatWin();
             }
         }
     }
