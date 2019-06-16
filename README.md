@@ -6,8 +6,8 @@ See [issue #1](https://github.com/Amar1729/chunkwm-float/issues/1) for planned/w
 
 ## Installation
 
-I may set up a tap soon, but for now only installation is from source.
-Clone this repo, `make -f src/makefile`, and copy the resulting plugin under `bin/` into chunkwm plugin directory.
+I may set up a tap soon, but for now only installation is from source.  
+Clone this repo, `cd src/ && make`, and copy the resulting plugin under `bin/` into your chunkwm plugins directory (`/usr/local/opt/chunkwm/share/chunkwm/plugins` if installed with homebrew).
 
 ## Usage
 
