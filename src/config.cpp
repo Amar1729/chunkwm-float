@@ -84,6 +84,7 @@ command_func WindowCommandDispatch(char Flag)
     case 'm': return MoveWindow;        break;
     case 'i': return IncWindow;         break;
     case 'd': return DecWindow;         break;
+    case 'a': return AbsoluteSize;      break;
     case 's': return TemporaryStep;     break;
     //case 'p': return PresetWindow;      break;
 
@@ -100,12 +101,13 @@ ParseWindowCommand(const char *Message, command *Chain)
 
     int Option;
     bool Success = true;
-    const char *Short = "d:i:s:m:";
+    const char *Short = "a:d:i:s:m:";
 
     struct option Long[] = {
         { "inc", required_argument, NULL, 'i' },
         { "dec", required_argument, NULL, 'd' },
         { "move", required_argument, NULL, 'm' },
+        { "absolute", required_argument, NULL, 'a' },
         { "step", required_argument, NULL, 's' },
         { NULL, 0, NULL, 0 }
     };
@@ -130,6 +132,19 @@ ParseWindowCommand(const char *Message, command *Chain)
                     goto End;
                 }
             } break;
+            case 'a': {
+                float X, Y, W, H;
+                if (sscanf(optarg, "%fx%f:%fx%f", &X, &Y, &W, &H) == 4) {
+                    command *Entry = ConstructCommand(Option, optarg);
+                    Command->Next = Entry;
+                    Command = Entry;
+                } else {
+                    c_log(C_LOG_LEVEL_WARN, "    invalid selector '%s' for window flag '%c'\n", optarg, Option);
+                    Success = false;
+                    FreeCommandChain(Chain);
+                    goto End;
+                }
+            }
             case 's': {
                 float Step;
                 if (sscanf(optarg, "%f", &Step) == 1) {

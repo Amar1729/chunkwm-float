@@ -46,6 +46,7 @@ void ConstrainResultToRegion(region *Result, const region Region, window_cmd Cmd
             Result->Y = (Region.Y+Region.Height) - Result->Height;
         }
     } else {
+        // TODO - may need to fix this with addition of WindowSetSize
         // resize window to constraint
         if ((int)Result->X < (int)Region.X) {
             Result->Width -= Region.X - Result->X;

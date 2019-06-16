@@ -36,6 +36,45 @@ region GetScreenDimensions(CFStringRef DisplayRef, virtual_space *VirtualSpace)
     return Result;
 }
 
+region _WindowHandler(macos_window *Window, char *Op, region Screen) {
+    // set the absolute size of a floating window
+    // input format: fxf:fxf (fractions of screen)
+    float X, Y, W, H;
+    sscanf(Op, "%fx%f:%fx%f", &X, &Y, &W, &H);
+
+    CGPoint Position = AXLibGetWindowPosition(Window->Ref);
+    CGSize Size = AXLibGetWindowSize(Window->Ref);
+
+    region Result = RegionFromPointAndSize(Position, Size);
+
+    // validate
+    // double check float-> int conversion
+    if (((int)X < 0) || ((int)Y < 0) || ((int)W < 0) || ((int)H < 0)) { goto err; }
+    if (((int)X > 1) || ((int)Y > 1) || ((int)W > 1) || ((int)H > 1)) { goto err; }
+
+    region_offset Offset;
+    Offset.Left =   Screen.X + (X * Screen.Width);
+    Offset.Right =  Screen.X + (W * Screen.Width);
+    Offset.Top =    Screen.Y + (Y * Screen.Height);
+    Offset.Bottom = Screen.Y + (H * Screen.Height);
+
+    Result.X = Offset.Left;
+    Result.Y = Offset.Top;
+    Result.Width = (Offset.Right - Offset.Left);
+    Result.Height = (Offset.Bottom - Offset.Top);
+
+    // need to add other checks for validation (result isn't weirdly sized, w !< x)
+
+    /*
+    Result.X = Offset.Left > Screen.X ? Offset.Left : Screen.X;
+    Result.Y = Offset.Top > Screen.Y ? Offset.Top : Screen.Y;
+    //Result.Width = 
+    */
+
+err:
+    return Result;
+}
+
 region _WindowHandler(macos_window *Window, char *Op, float Step, window_cmd Cmd)
 {
     CGPoint Position = AXLibGetWindowPosition(Window->Ref);
@@ -94,13 +133,17 @@ void WindowHandler(char *Op, window_cmd Cmd)
         Step = Region.Width;
     }
 
+    region Result;
     switch (Cmd) {
         case WindowMove :      { Step *=  CVarFloatingPointValue(CVAR_FLOAT_MOVE);   } break ;
         case WindowIncrement : { Step *=  CVarFloatingPointValue(CVAR_FLOAT_RESIZE); } break ;
         case WindowDecrement : { Step *= -CVarFloatingPointValue(CVAR_FLOAT_RESIZE); } break ;
+        case WindowSetSize :   { Result = _WindowHandler(Window, Op, Region);        } break ; // bit gross, have to overload _WindowHandler
     }
 
-    region Result = _WindowHandler(Window, Op, Step, Cmd);
+    if (Cmd != WindowSetSize) {
+        Result = _WindowHandler(Window, Op, Step, Cmd);
+    }
 
     c_log(C_LOG_LEVEL_WARN, "result: %fx%f - %fx%f\n", Result.X, Result.Y, Result.Width, Result.Height);
 
@@ -127,6 +170,12 @@ void IncWindow(char *Op)
 void DecWindow(char *Op)
 {
     WindowHandler(Op, WindowDecrement);
+}
+
+void AbsoluteSize(char *Op)
+{
+    c_log(C_LOG_LEVEL_WARN, "Setting size: %s\n", Op);
+    WindowHandler(Op, WindowSetSize);
 }
 
 void TemporaryStep(char *Size)
