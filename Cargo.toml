@@ -1,0 +1,13 @@
+[package]
+name = "float"
+version = "0.1.0"
+authors = ["Amar1729 <amar.paul16@gmail.com>"]
+edition = "2018"
+
+[dependencies.chunkwm]
+git = "https://github.com/splintah/chunkwm-rs"
+features = [ "accessibility" ]
+version = "0.4.6"
+
+[lib]
+crate-type = ["cdylib"]
