@@ -4,7 +4,12 @@
 // #[allow(unused_variables)]
 
 #[macro_use]
+extern crate structopt;
+
+#[macro_use]
 extern crate chunkwm;
+
+use structopt::StructOpt;
 
 use chunkwm::prelude::{ChunkWMError, Event, HandleEvent, LogLevel,
                        Payload, Subscription, API};
