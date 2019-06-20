@@ -21,7 +21,41 @@ macro_rules! c_logger {
     );
 }
 
-//mod parse;
+// arguments
+#[derive(Debug, StructOpt)]
+#[structopt(name = "float", about = "plugin for floating window management.")]
+enum Float {
+    #[structopt(name = "window")]
+    Window {
+        /// Center window
+        #[structopt(short = "c", long = "center")]
+        center: bool,
+        /// Set absolute size of window [fxf:fxf]
+        #[structopt(short = "a", long = "absolute")]
+        absolute: Option<String>,
+        /// Decrement window in direction by step_size_dilate
+        #[structopt(short = "d", long = "dec")]
+        dec_dir: Option<String>,
+        /// Increment window in direction size by step_size_dilate
+        #[structopt(short = "i", long = "inc")]
+        inc_dir: Option<String>,
+        /// Move window in direction by step_size_move
+        #[structopt(short = "m", long = "move")]
+        move_dir: Option<String>,
+        /// Temporarily set step size (for move or dilate)
+        #[structopt(short = "s", long = "size")]
+        size: Option<f32>,
+    },
+    #[structopt(name = "query")]
+    Query {
+        /// Get pixel measurement of window [left|right|top|bottom|width|height]
+        #[structopt(short = "p", long = "position")]
+        position: Option<String>,
+        /// Get screen dimensions
+        #[structopt(short = "s", long = "screen")]
+        all: bool,
+    },
+}
 
 // Create an event handler. Your handler should be `pub`.
 pub struct Plugin {
@@ -87,71 +121,13 @@ impl HandleEvent for Plugin {
     }
 }
 
-pub struct Command {
-    size: f32,
-    command: String,
-    value: String,
-}
+// ---- ---- custom trait+methods for Plugin
 
-pub trait Handler {
-    fn parse_args(&self, message: String) -> Result<Command, &'static str>;
+pub trait DaemonHandler {
     fn command_handler(&self, payload: Payload) -> String;
 }
 
-impl Handler for Plugin {
-    fn parse_args(&self, message: String) -> Result<Command, &'static str> {
-        let mut size: f32 = 0.0;
-        let mut cmd: String = String::from("");
-        let mut value: String = String::from("");
-
-        let mut get_size: bool = false;
-        let mut get_cmd: bool = false;
-
-        c_logger!(self, "msg", message);
-
-        for i in message.split(" ") {
-            c_logger!(self, "i", i);
-
-            if get_size && get_cmd {
-                self.api.log(
-                    LogLevel::Warn,
-                    "incorrect args"
-                );
-                return Err("--size needs param");
-            } else if get_size {
-                get_size = false;
-                size = i.parse().unwrap(); // can do error here
-            } else if get_cmd {
-                get_cmd = false;
-                if value != "" {
-                    // passed more than one cmd
-                    self.api.log(
-                        LogLevel::Warn,
-                        "incorrect args"
-                    );
-                    return Err("too many commands");
-                }
-                value = String::from(i);
-            } else if i == "--size" || i == "-s" {
-                get_size = true;
-                get_cmd = false;
-                continue;
-            } else if i == "--move" || i == "-m" {
-                get_size = false;
-                get_cmd = true;
-                cmd = String::from("move");
-            }
-        }
-
-        Ok(
-            Command {
-                size : size,
-                command : cmd,
-                value : value,
-            }
-        )
-    }
-
+impl DaemonHandler for Plugin {
     fn command_handler(&self, payload: Payload) -> String {
         // need a nonempty command and message
         let cmd = match payload.command() {
@@ -161,25 +137,18 @@ impl Handler for Plugin {
             }
         };
 
-        let _args = match payload.message() {
+        let msg = match payload.message() {
             Ok(v) => v,
             Err(e) => {
                 return String::from(format!("chunk-float: error: {}", e));
             }
         };
 
-        //api.log(LogLevel::Warn, format!("recv {}", cmd));
-        match cmd.as_ref() {
-            "window" => {
-                return String::from("window");
-            }
-            "query" => {
-                return String::from("query");
-            }
-            e => {
-                return String::from(format!("chunkwm-float: unknown command {}", e));
-            }
-        }
+        let args = vec!(String::from("chunkc"), cmd, msg.split(" ").collect());
+        let opt = Float::from_iter_safe(args);
+        c_logger!(self, "opt", opt);
+
+        return String::from("ok");
     }
 }
 
