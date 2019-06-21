@@ -3,6 +3,8 @@
 
 // #[allow(unused_variables)]
 
+extern crate core_graphics;
+
 #[macro_use]
 extern crate structopt;
 
@@ -13,6 +15,8 @@ use structopt::StructOpt;
 
 use chunkwm::prelude::{ChunkWMError, Event, HandleEvent, LogLevel,
                        Payload, Subscription, API};
+
+mod window;
 
 macro_rules! c_logger {
     ($slf:expr, $n:expr, $x:expr) => (
@@ -125,6 +129,8 @@ impl HandleEvent for Plugin {
 
 pub trait DaemonHandler {
     fn command_handler(&self, payload: Payload) -> String;
+    fn get_move_size(&self, size: Option<f32>) -> f32;
+    fn get_dilate_size(&self, size: Option<f32>) -> f32;
 }
 
 impl DaemonHandler for Plugin {
@@ -144,36 +150,41 @@ impl DaemonHandler for Plugin {
             }
         };
 
-        let args = vec!(String::from("chunkc"), cmd, msg.split(" ").collect());
-        let opt = Float::from_iter_safe(args);
-        c_logger!(self, "opt", opt);
+        let args = format!("chunkc {} {}", cmd, msg);
+        let options = Float::from_iter_safe(args.split(" "));
+        c_logger!(self, "opt", options);
+
+        match options {
+            Ok(Float::Window { center, absolute, dec_dir, inc_dir, move_dir, size }) => {
+                match move_dir {
+                    Some(val) => { window::window_move(val, self.get_move_size(size)) }
+                    None => {},
+                }
+            }
+            Ok(Float::Query { position, all }) => {
+                // how to do network comm
+            }
+            _ => { return String::from("unknown operation") }
+        }
 
         return String::from("ok");
     }
-}
 
-/*
-fn window_handler(m: String, plugin: &mut Plugin) -> String {
-    /*
-    let step_size = plugin.step_size_move.value();
-    let action = "";
-    for arg in m.split(" ") {
-        match arg.as_ref() {
-            "--size" => {
-                step_size = arg;
-            }
+    fn get_move_size(&self, size: Option<f32>) -> f32 {
+        if let Some(size) = size {
+            size
+        } else {
+            //self.step_size_move.value().unwrap()
+            0.0
+        }
     }
-    */
-    let args: Vec<String> = env::args().collect();
-    plugin.api.log(
-        LogLevel::Warn,
-        format!("env: {:?}", args)
-    );
-    return String::from("wut");
-}
 
-fn query_handler(m: String, plugin: &mut Plugin) -> String {
-    return String::from("query");
+    fn get_dilate_size(&self, size: Option<f32>) -> f32 {
+        if let Some(size) = size {
+            size
+        } else {
+            //self.step_size_dilate.value().unwrap()
+            0.0
+        }
+    }
 }
-*/
-

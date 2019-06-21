@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Amar1729 <amar.paul16@gmail.com>"]
 edition = "2018"
 
+[dependencies]
+#core-graphics = "0.17.3"
+core-graphics = "0.12.4" # locked to same version as chunkwm-rs ?
+core-foundation = "0.4.6"
+
 [dependencies.structopt]
 version = "0.2.16"
 default-features = false
