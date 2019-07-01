@@ -1,0 +1,55 @@
+#compdef _chunkc_float chunkc
+
+# Completion for chunkwm float plugin
+
+function _chunkc_float_window {
+    local -a cardinal=(north south east west)
+    local -a relative=(next prev)
+
+    # note on the format of these args:
+    # --argument[description of argument]:message:action
+    # where action is an array or completion function (can be chained, see -r in args)
+
+    typeset -A descs=(
+        c   "[center a window]"
+        s   "[set temporary step size]:step size"
+        m   "[move a window]:move choice:($cardinal)"
+        i   "[increase window size]:inc:($cardinal)"
+        d   "[decrease window size]:dec:($cardinal)"
+        a   "[set window size]:absolute"
+    )
+
+    # easiest way to add same description for multiple (long/short) options
+    args=(
+        "-c${descs[c]}" "--center${descs[c]}"
+        "-s${descs[s]}" "--size${descs[s]}"
+        "-m${descs[m]}" "--move${descs[m]}"
+        "-i${descs[i]}" "--inc${descs[i]}"
+        "-d${descs[d]}" "--dec${descs[d]}"
+        "-a${descs[a]}" "--absolute${descs[a]}"
+    )
+
+    _arguments - "(window)" $args
+}
+
+function _chunkc_float_query {
+    args=(
+        "--position:args:(x y w h)"
+    )
+
+    _arguments - "(query)" $args
+}
+
+function _chunkc_float {
+    local context state state_descr line
+    typeset -A opt_args
+
+    _arguments -C \
+        "1:float:_sep_parts '(float)' :: '(window query)'"
+
+    if [[ ${line[1]} != "float::"* ]]; then
+        _chunkc
+    fi
+}
+
+_chunkc_float "$@"
