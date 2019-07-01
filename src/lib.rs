@@ -11,17 +11,23 @@ extern crate structopt;
 #[macro_use]
 extern crate chunkwm;
 
+use std::collections::HashMap;
+
 use structopt::StructOpt;
 
-use chunkwm::prelude::{ChunkWMError, Event, HandleEvent, LogLevel,
+use chunkwm::prelude::{CVar, ChunkWMError, Event, HandleEvent, LogLevel,
                        Payload, Subscription, API};
+use chunkwm::{application, display, window};
 
-mod window;
+//type CWARN = LogLevel::Warn;
+//type CDEBUG = LogLevel::Debug;
+
+//mod window;
 
 macro_rules! c_logger {
     ($slf:expr, $n:expr, $x:expr) => (
         // want to take multiple args to fmt tho
-        $slf.api.log(LogLevel::Warn, format!("{}: {}", $n, $x))
+        $slf.api.log(LogLevel::Warn, format!("{}: {:?}", $n, $x))
     );
 }
 
@@ -61,11 +67,22 @@ enum Float {
     },
 }
 
+// Structure representing state of windows
+pub struct State {
+    map_applications: HashMap<u32, application::Application>, // u32 is pid_t
+    it_applications: Vec<application::Application>,
+
+    map_windows: HashMap<u32, window::Window>,
+    it_windows: Vec<window::Window>,
+}
+
 // Create an event handler. Your handler should be `pub`.
 pub struct Plugin {
     api: API,
-    //step_size_move: CVar<f32>,
-    //step_size_dilate: CVar<f32>,
+    step_size_move: CVar<f32>,
+    step_size_dilate: CVar<f32>,
+
+    state: State,
 }
 
 // Create the bridge between the C/C++ plugin and the event handler.
@@ -77,6 +94,12 @@ chunkwm_plugin!{
     version: b"0.1.0\0"
 }
 
+impl State {
+    fn new(api: API) -> State {
+        // need to query windows on screen when initially constructing state
+    }
+}
+
 // Implement `HandleEvent` on the event handler.
 impl HandleEvent for Plugin {
     fn new(api: API) -> Plugin {
@@ -84,8 +107,8 @@ impl HandleEvent for Plugin {
 
         Plugin {
             api,
-            //step_size_move: CVar::new("step_size_move", api).unwrap(),
-            //step_size_dilate: CVar::new("step_size_dilate", api).unwrap(),
+            step_size_move: CVar::new("step_size_move", api).unwrap(),
+            step_size_dilate: CVar::new("step_size_dilate", api).unwrap(),
         }
     }
 
@@ -127,13 +150,15 @@ impl HandleEvent for Plugin {
 
 // ---- ---- custom trait+methods for Plugin
 
+/*
 pub trait DaemonHandler {
     fn command_handler(&self, payload: Payload) -> String;
     fn get_move_size(&self, size: Option<f32>) -> f32;
     fn get_dilate_size(&self, size: Option<f32>) -> f32;
 }
+*/
 
-impl DaemonHandler for Plugin {
+impl Plugin {
     fn command_handler(&self, payload: Payload) -> String {
         // need a nonempty command and message
         let cmd = match payload.command() {
@@ -156,9 +181,20 @@ impl DaemonHandler for Plugin {
 
         match options {
             Ok(Float::Window { center, absolute, dec_dir, inc_dir, move_dir, size }) => {
-                match move_dir {
-                    Some(val) => { window::window_move(val, self.get_move_size(size)) }
-                    None => {},
+                if center {
+                    window::window_absolute();
+                }
+                if let Some(val) = absolute {
+                    window::window_absolute(val);
+                }
+                if let Some(val) = dec_dir {
+                    window::window_dec(val, self.get_dilate_size(size));
+                }
+                if let Some(val) = inc_dir {
+                    window::window_inc(val, self.get_dilate_size(size));
+                }
+                if let Some(val) = move_dir {
+                    window::window_move(val, self.get_move_size(size));
                 }
             }
             Ok(Float::Query { position, all }) => {

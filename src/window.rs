@@ -15,20 +15,21 @@ use core_graphics::geometry::{CGPoint, CGSize};
 use chunkwm::raw::{AXUIElementRef};
 use chunkwm::common::accessibility::{element};
 
-use chunkwm::{application, display, window};
+//use chunkwm::{application, display, window};
 
 fn logger(msg: &str) {
     let mut file = File::create("/tmp/float_logger").unwrap();
 	file.write_all(msg.as_bytes()).unwrap();
 }
 
-pub struct State {
-    map_applications: HashMap<u32, application::Application>, // u32 is pid_t
-    it_applications: Vec<application::Application>,
+// ---- utility functions
 
-    map_windows: HashMap<u32, window::Window>,
-    it_windows: Vec<window::Window>,
-}
+// ---- window management/query functions
+
+pub fn window_center() {}
+pub fn window_absolute(coord: String) {}
+pub fn window_dec(dir: String, size: f32) {}
+pub fn window_inc(dir: String, size: f32) {}
 
 pub fn window_move(dir: String, size: f32) {
     unsafe {
